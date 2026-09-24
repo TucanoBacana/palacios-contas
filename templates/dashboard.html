@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Painel{% endblock %}
+{% block content %}
+  <h1>Painel</h1>
+
+  <div class="cards">
+    <div class="card card-pendente">
+      <span class="card-label">Total pendente</span>
+      <span class="card-valor">R$ {{ "%.2f"|format(totais.total_pendente) }}</span>
+      <span class="card-sub">{{ totais.qtd_pendente }} lancamento(s) em aberto</span>
+    </div>
+    <div class="card card-pago">
+      <span class="card-label">Total ja pago</span>
+      <span class="card-valor">R$ {{ "%.2f"|format(totais.total_pago) }}</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <section>
+      <h2>Quem mais deve</h2>
+      {% if ranking %}
+      <table>
+        <thead><tr><th>Pessoa</th><th>Pendente</th></tr></thead>
+        <tbody>
+          {% for r in ranking %}
+          <tr><td>{{ r.nome }}</td><td>R$ {{ "%.2f"|format(r.total) }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted">Nenhuma conta pendente.</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>Ultimos lancamentos</h2>
+      {% if ultimos %}
+      <table>
+        <thead><tr><th>Data</th><th>Pessoa</th><th>Produto</th><th>Qtd</th><th>Valor</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for u in ultimos %}
+          <tr>
+            <td>{{ u.data }}</td>
+            <td>{{ u.pessoa }}</td>
+            <td>{{ u.produto }}</td>
+            <td>{{ u.quantidade|int }}</td>
+            <td>R$ {{ "%.2f"|format(u.valor_total) }}</td>
+            <td>{% if u.pago %}<span class="tag tag-ok">pago</span>{% else %}<span class="tag tag-pendente">pendente</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted">Nenhum lancamento ainda.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <a class="btn btn-primary" href="{{ url_for('novo') }}">+ Registrar nova conta</a>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Contas por pessoa{% endblock %}
+{% block content %}
+  <h1>Contas por pessoa</h1>
+
+  <form method="get" class="form-busca">
+    <input type="search" name="q" value="{{ busca }}" placeholder="Buscar pessoa...">
+    <button type="submit" class="btn">Buscar</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr><th>Pessoa</th><th>Pendente</th><th>Ja pago</th><th>Itens em aberto</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for p in pessoas %}
+      <tr>
+        <td>{{ p.nome }}</td>
+        <td class="{{ 'valor-pendente' if p.pendente > 0 else '' }}">R$ {{ "%.2f"|format(p.pendente) }}</td>
+        <td>R$ {{ "%.2f"|format(p.pago) }}</td>
+        <td>{{ p.itens_pendentes }}</td>
+        <td><a class="btn btn-sm" href="{{ url_for('conta_pessoa', pessoa_id=p.id) }}">Ver detalhes</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Nenhuma pessoa encontrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

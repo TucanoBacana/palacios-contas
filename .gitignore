@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+data/palacios.db
+data/backups/
+server.log

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PALACIO'S{% endblock %} - Contas</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('dashboard') }}">PALACIO'S</a>
+    <nav>
+      <a href="{{ url_for('novo') }}" class="{{ 'active' if request.endpoint == 'novo' else '' }}">Registrar conta</a>
+      <a href="{{ url_for('contas') }}" class="{{ 'active' if request.endpoint in ('contas','conta_pessoa') else '' }}">Contas por pessoa</a>
+      <a href="{{ url_for('cardapio') }}" class="{{ 'active' if request.endpoint == 'cardapio' else '' }}">Cardapio</a>
+      <a href="{{ url_for('exportar_backup') }}">Exportar Excel</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for categoria, msg in messages %}
+          <div class="flash {{ 'flash-erro' if categoria == 'erro' else 'flash-ok' }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
