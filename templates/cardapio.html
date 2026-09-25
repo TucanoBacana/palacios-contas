@@ -2,13 +2,14 @@
 {% block title %}Cardapio{% endblock %}
 {% block content %}
   <h1>Cardapio</h1>
+  <p class="muted">Para ajustar o estoque, use a aba <a href="{{ url_for('estoque') }}">Estoque</a>.</p>
 
+  <h2>Mercadinho</h2>
   <table>
-    <thead><tr><th>N. Item</th><th>Produto</th><th>Preco</th><th></th></tr></thead>
+    <thead><tr><th>Produto</th><th>Preco</th><th>Estoque</th><th></th></tr></thead>
     <tbody>
-      {% for prod in produtos %}
+      {% for prod in mercadinho %}
       <tr>
-        <td>{{ prod.numero_item }}</td>
         <td>{{ prod.nome }}</td>
         <td>
           <form method="post" class="inline-form">
@@ -18,6 +19,7 @@
             <button type="submit" class="btn btn-sm">Salvar</button>
           </form>
         </td>
+        <td>{{ prod.estoque|round(1) }}</td>
         <td>
           <form method="post" class="inline-form" onsubmit="return confirm('Remover este produto do cardapio?');">
             <input type="hidden" name="acao" value="desativar">
@@ -26,6 +28,38 @@
           </form>
         </td>
       </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">Nenhum produto cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Restaurante</h2>
+  <table>
+    <thead><tr><th>Produto</th><th>Preco</th><th>Estoque</th><th></th></tr></thead>
+    <tbody>
+      {% for prod in restaurante %}
+      <tr>
+        <td>{{ prod.nome }}</td>
+        <td>
+          <form method="post" class="inline-form">
+            <input type="hidden" name="acao" value="editar">
+            <input type="hidden" name="produto_id" value="{{ prod.id }}">
+            <input type="number" step="0.01" name="preco" value="{{ prod.preco }}" class="preco-input">
+            <button type="submit" class="btn btn-sm">Salvar</button>
+          </form>
+        </td>
+        <td>{{ prod.estoque|round(1) }}</td>
+        <td>
+          <form method="post" class="inline-form" onsubmit="return confirm('Remover este produto do cardapio?');">
+            <input type="hidden" name="acao" value="desativar">
+            <input type="hidden" name="produto_id" value="{{ prod.id }}">
+            <button type="submit" class="btn btn-sm btn-danger">Remover</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">Nenhum produto cadastrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -33,11 +67,14 @@
   <h2>Adicionar produto</h2>
   <form method="post" class="form-lancamento">
     <input type="hidden" name="acao" value="novo">
+    <div class="field">
+      <label for="categoria">Categoria</label>
+      <select id="categoria" name="categoria">
+        <option value="mercadinho">Mercadinho</option>
+        <option value="restaurante">Restaurante</option>
+      </select>
+    </div>
     <div class="field-row">
-      <div class="field">
-        <label for="numero_item">N. Item</label>
-        <input type="number" id="numero_item" name="numero_item" required>
-      </div>
       <div class="field">
         <label for="nome">Produto</label>
         <input type="text" id="nome" name="nome" required>
@@ -45,6 +82,16 @@
       <div class="field">
         <label for="preco">Preco</label>
         <input type="number" step="0.01" id="preco" name="preco" required>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="numero_item">N. Item (opcional)</label>
+        <input type="number" id="numero_item" name="numero_item">
+      </div>
+      <div class="field">
+        <label for="estoque_inicial">Estoque inicial</label>
+        <input type="number" step="0.5" id="estoque_inicial" name="estoque_inicial" value="0">
       </div>
     </div>
     <button type="submit" class="btn btn-primary">Adicionar</button>

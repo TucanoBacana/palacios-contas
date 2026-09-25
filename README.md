@@ -103,20 +103,41 @@ O Render detecta o push e refaz o deploy sozinho.
 
 ## Uso do dia a dia (depois de tudo no ar)
 
-- **Registrar conta**: lancamento rapido - pessoa, produto (preco e total
-  calculados sozinhos), quantidade, forma de pagamento. O formulario fica
-  pronto pro proximo lancamento depois de salvar.
-- **Contas por pessoa**: quanto cada pessoa deve, com botao para marcar tudo
-  como pago de uma vez ou item por item.
-- **Cardapio**: adicionar produto novo, editar preco ou remover item.
-- **Exportar Excel**: gera um `.xlsx` (aba de lancamentos + cardapio) com o
-  estado atual do banco, para guardar como backup ou mandar por e-mail.
+Feito para celular: menu embaixo da tela, botoes grandes, sem select longo
+pra rolar - e toque nos produtos pra montar a conta.
+
+- **Mercadinho**: tela de venda rapida dos itens comprados prontos (bebidas,
+  salgados industrializados etc). Toque nos produtos pra somar quantidade,
+  escolhe/digita a pessoa, "Registrar". Cada venda ja abate do estoque.
+- **Restaurante**: mesma ideia, mas pros itens feitos na casa (coxinha,
+  esfiha, tortas...). Funciona como uma encomenda: puxa o preco do cardapio,
+  abate do estoque de produzidos e entra direto na conta da pessoa.
+- **Estoque**: registra "quanto foi produzido" (restaurante) ou "quanto
+  chegou" (reposicao do mercadinho) - a quantidade soma no estoque atual.
+  Mostra tambem o historico das ultimas entradas.
+- **Contas por pessoa**: quanto cada pessoa deve, com badge indicando se o
+  item e do Mercadinho (M) ou Restaurante (R), e botao para marcar tudo como
+  pago de uma vez ou item por item. Excluir um lancamento devolve a
+  quantidade pro estoque automaticamente.
+- **Cardapio**: cadastrar produto novo (escolhendo a categoria), editar preco
+  ou remover item. O estoque se ajusta pela aba Estoque, nao aqui.
+- **Exportar Excel**: gera um `.xlsx` com lancamentos, cardapio (com estoque
+  atual) e o historico de entradas de estoque - para backup ou conferencia.
+
+O estoque nunca bloqueia uma venda: se ficar zerado ou negativo, so aparece
+um aviso (laranja/vermelho) - a ideia e nunca perder um registro de venda por
+causa de uma contagem de estoque desatualizada. Qualquer erro inesperado cai
+numa tela de aviso simples (em vez de uma tela de erro tecnica), com botao
+para voltar ao Painel.
 
 ## Arquivos
 
 - `app.py` - aplicacao web (Flask)
-- `db.py` - conexao e schema do banco (Postgres via `DATABASE_URL`)
-- `import_xlsx.py` - importa a planilha original para o banco (rodar 1x)
+- `db.py` - conexao e schema do banco (Postgres via `DATABASE_URL`), com as
+  tabelas `pessoas`, `produtos` (categoria mercadinho/restaurante + estoque),
+  `pedidos` e `entradas_estoque`
+- `import_xlsx.py` - importa a planilha original para o banco (rodar 1x;
+  tudo importado entra como categoria "mercadinho")
 - `export_xlsx.py` - gera um `.xlsx` de backup a partir do banco
 - `Procfile` - comando que o Render usa para iniciar o servidor
 - `.env.example` - modelo do arquivo de configuracao local (copie para `.env`)

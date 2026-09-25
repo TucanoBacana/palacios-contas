@@ -24,8 +24,13 @@
       {% for p in pedidos %}
       <tr>
         <td>{{ p.data }}</td>
-        <td>{{ p.produto }}</td>
-        <td>{{ p.quantidade|int }}</td>
+        <td>
+          <span class="tag {{ 'tag-restaurante' if p.categoria == 'restaurante' else 'tag-mercadinho' }}">
+            {{ 'R' if p.categoria == 'restaurante' else 'M' }}
+          </span>
+          {{ p.produto }}
+        </td>
+        <td>{{ p.quantidade|round(1) }}</td>
         <td>R$ {{ "%.2f"|format(p.valor_total) }}</td>
         <td>{{ p.forma_pagamento or '-' }}</td>
         <td>

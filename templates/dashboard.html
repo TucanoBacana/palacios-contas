@@ -15,6 +15,28 @@
     </div>
   </div>
 
+  <div class="acoes-rapidas">
+    <a href="{{ url_for('mercadinho') }}" class="btn btn-primary">+ Venda mercadinho</a>
+    <a href="{{ url_for('restaurante') }}" class="btn btn-primary">+ Encomenda restaurante</a>
+  </div>
+
+  {% if estoque_baixo %}
+  <div class="alerta-estoque">
+    <strong>Estoque baixo</strong>
+    <ul>
+      {% for p in estoque_baixo %}
+      <li>
+        <span class="tag {{ 'tag-restaurante' if p.categoria == 'restaurante' else 'tag-mercadinho' }}">
+          {{ 'Restaurante' if p.categoria == 'restaurante' else 'Mercadinho' }}
+        </span>
+        {{ p.nome }} - {{ p.estoque|round(1) }} un.
+      </li>
+      {% endfor %}
+    </ul>
+    <a href="{{ url_for('estoque') }}">Repor estoque &rarr;</a>
+  </div>
+  {% endif %}
+
   <div class="grid-2">
     <section>
       <h2>Quem mais deve</h2>
@@ -42,8 +64,13 @@
           <tr>
             <td>{{ u.data }}</td>
             <td>{{ u.pessoa }}</td>
-            <td>{{ u.produto }}</td>
-            <td>{{ u.quantidade|int }}</td>
+            <td>
+              <span class="tag {{ 'tag-restaurante' if u.categoria == 'restaurante' else 'tag-mercadinho' }}">
+                {{ 'R' if u.categoria == 'restaurante' else 'M' }}
+              </span>
+              {{ u.produto }}
+            </td>
+            <td>{{ u.quantidade|round(1) }}</td>
             <td>R$ {{ "%.2f"|format(u.valor_total) }}</td>
             <td>{% if u.pago %}<span class="tag tag-ok">pago</span>{% else %}<span class="tag tag-pendente">pendente</span>{% endif %}</td>
           </tr>
@@ -55,6 +82,4 @@
       {% endif %}
     </section>
   </div>
-
-  <a class="btn btn-primary" href="{{ url_for('novo') }}">+ Registrar nova conta</a>
 {% endblock %}

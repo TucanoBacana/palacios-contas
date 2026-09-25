@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Estoque{% endblock %}
+{% block content %}
+  <h1>Estoque</h1>
+  <p class="muted">Registre aqui a producao do restaurante ou a reposicao de itens do mercadinho. A quantidade entra somada ao estoque atual.</p>
+
+  <h2>Restaurante (producao)</h2>
+  <div class="lista-estoque">
+    {% for prod in restaurante_produtos %}
+    <form method="post" class="linha-estoque">
+      <input type="hidden" name="produto_id" value="{{ prod.id }}">
+      <span class="le-nome">{{ prod.nome }}</span>
+      <span class="le-atual {{ 'le-baixo' if prod.estoque <= 5 else '' }}">{{ prod.estoque|round(1) }} un.</span>
+      <input type="number" name="quantidade" step="0.5" min="0.5" placeholder="qtd" class="le-input" required>
+      <button type="submit" class="btn btn-sm btn-primary">+ Produzido</button>
+    </form>
+    {% else %}
+    <p class="muted">Nenhum produto de restaurante cadastrado ainda. <a href="{{ url_for('cardapio') }}">Cadastrar &rarr;</a></p>
+    {% endfor %}
+  </div>
+
+  <h2>Mercadinho (reposicao)</h2>
+  <div class="lista-estoque">
+    {% for prod in mercadinho_produtos %}
+    <form method="post" class="linha-estoque">
+      <input type="hidden" name="produto_id" value="{{ prod.id }}">
+      <span class="le-nome">{{ prod.nome }}</span>
+      <span class="le-atual {{ 'le-baixo' if prod.estoque <= 5 else '' }}">{{ prod.estoque|round(1) }} un.</span>
+      <input type="number" name="quantidade" step="0.5" min="0.5" placeholder="qtd" class="le-input" required>
+      <button type="submit" class="btn btn-sm btn-primary">+ Reposicao</button>
+    </form>
+    {% else %}
+    <p class="muted">Nenhum produto de mercadinho cadastrado ainda. <a href="{{ url_for('cardapio') }}">Cadastrar &rarr;</a></p>
+    {% endfor %}
+  </div>
+
+  <h2>Ultimas entradas</h2>
+  {% if entradas %}
+  <table>
+    <thead><tr><th>Data</th><th>Categoria</th><th>Produto</th><th>Quantidade</th><th>Obs</th></tr></thead>
+    <tbody>
+      {% for e in entradas %}
+      <tr>
+        <td>{{ e.data }}</td>
+        <td>{{ 'Restaurante' if e.categoria == 'restaurante' else 'Mercadinho' }}</td>
+        <td>{{ e.produto }}</td>
+        <td>+{{ e.quantidade|round(1) }}</td>
+        <td>{{ e.observacoes or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Nenhuma entrada registrada ainda.</p>
+  {% endif %}
+{% endblock %}

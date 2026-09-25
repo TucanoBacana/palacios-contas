@@ -2,20 +2,30 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#b8232f">
   <title>{% block title %}PALACIO'S{% endblock %} - Contas</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+  <input type="checkbox" id="nav-toggle" class="nav-toggle-checkbox">
+
   <header class="topbar">
     <a class="brand" href="{{ url_for('dashboard') }}">PALACIO'S</a>
-    <nav>
-      <a href="{{ url_for('novo') }}" class="{{ 'active' if request.endpoint == 'novo' else '' }}">Registrar conta</a>
-      <a href="{{ url_for('contas') }}" class="{{ 'active' if request.endpoint in ('contas','conta_pessoa') else '' }}">Contas por pessoa</a>
+    <label for="nav-toggle" class="nav-burger" aria-label="Abrir menu">
+      <span></span><span></span><span></span>
+    </label>
+    <nav class="mainnav">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' else '' }}">Painel</a>
+      <a href="{{ url_for('mercadinho') }}" class="{{ 'active' if request.endpoint == 'mercadinho' else '' }}">Mercadinho</a>
+      <a href="{{ url_for('restaurante') }}" class="{{ 'active' if request.endpoint == 'restaurante' else '' }}">Restaurante</a>
+      <a href="{{ url_for('estoque') }}" class="{{ 'active' if request.endpoint == 'estoque' else '' }}">Estoque</a>
+      <a href="{{ url_for('contas') }}" class="{{ 'active' if request.endpoint in ('contas','conta_pessoa') else '' }}">Contas</a>
       <a href="{{ url_for('cardapio') }}" class="{{ 'active' if request.endpoint == 'cardapio' else '' }}">Cardapio</a>
       <a href="{{ url_for('exportar_backup') }}">Exportar Excel</a>
     </nav>
   </header>
+  <label for="nav-toggle" class="nav-backdrop"></label>
 
   <main class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -28,5 +38,23 @@
 
     {% block content %}{% endblock %}
   </main>
+
+  <nav class="bottomnav">
+    <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' else '' }}">
+      <span class="ico">&#8962;</span><span>Painel</span>
+    </a>
+    <a href="{{ url_for('mercadinho') }}" class="{{ 'active' if request.endpoint == 'mercadinho' else '' }}">
+      <span class="ico">&#128717;</span><span>Mercado</span>
+    </a>
+    <a href="{{ url_for('restaurante') }}" class="{{ 'active' if request.endpoint == 'restaurante' else '' }}">
+      <span class="ico">&#127860;</span><span>Restaurante</span>
+    </a>
+    <a href="{{ url_for('contas') }}" class="{{ 'active' if request.endpoint in ('contas','conta_pessoa') else '' }}">
+      <span class="ico">&#128179;</span><span>Contas</span>
+    </a>
+    <label for="nav-toggle" class="{{ 'active' if request.endpoint in ('estoque','cardapio') else '' }}">
+      <span class="ico">&#8942;</span><span>Mais</span>
+    </label>
+  </nav>
 </body>
 </html>
