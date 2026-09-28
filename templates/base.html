@@ -20,6 +20,7 @@
       <a href="{{ url_for('mercadinho') }}" class="{{ 'active' if request.endpoint == 'mercadinho' else '' }}">Mercadinho</a>
       <a href="{{ url_for('restaurante') }}" class="{{ 'active' if request.endpoint == 'restaurante' else '' }}">Restaurante</a>
       <a href="{{ url_for('estoque') }}" class="{{ 'active' if request.endpoint == 'estoque' else '' }}">Estoque</a>
+      <a href="{{ url_for('financeiro') }}" class="{{ 'active' if request.endpoint == 'financeiro' else '' }}">Financeiro</a>
       <a href="{{ url_for('contas') }}" class="{{ 'active' if request.endpoint in ('contas','conta_pessoa') else '' }}">Contas</a>
       <a href="{{ url_for('cardapio') }}" class="{{ 'active' if request.endpoint == 'cardapio' else '' }}">Cardapio</a>
       <a href="{{ url_for('exportar_backup') }}">Exportar Excel</a>
@@ -52,7 +53,7 @@
     <a href="{{ url_for('contas') }}" class="{{ 'active' if request.endpoint in ('contas','conta_pessoa') else '' }}">
       <span class="ico">&#128179;</span><span>Contas</span>
     </a>
-    <label for="nav-toggle" class="{{ 'active' if request.endpoint in ('estoque','cardapio') else '' }}">
+    <label for="nav-toggle" class="{{ 'active' if request.endpoint in ('estoque','cardapio','financeiro') else '' }}">
       <span class="ico">&#8942;</span><span>Mais</span>
     </label>
   </nav>

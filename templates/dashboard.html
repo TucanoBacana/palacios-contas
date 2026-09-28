@@ -13,6 +13,11 @@
       <span class="card-label">Total ja pago</span>
       <span class="card-valor">R$ {{ "%.2f"|format(totais.total_pago) }}</span>
     </div>
+    <a href="{{ url_for('financeiro') }}" class="card card-lucro">
+      <span class="card-label">Lucro este mes</span>
+      <span class="card-valor">R$ {{ "%.2f"|format(lucro_mes) }}</span>
+      <span class="card-sub">ver detalhes em Financeiro &rarr;</span>
+    </a>
   </div>
 
   <div class="acoes-rapidas">
@@ -41,6 +46,7 @@
     <section>
       <h2>Quem mais deve</h2>
       {% if ranking %}
+      <div class="table-scroll">
       <table>
         <thead><tr><th>Pessoa</th><th>Pendente</th></tr></thead>
         <tbody>
@@ -49,6 +55,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% else %}
       <p class="muted">Nenhuma conta pendente.</p>
       {% endif %}
@@ -57,6 +64,7 @@
     <section>
       <h2>Ultimos lancamentos</h2>
       {% if ultimos %}
+      <div class="table-scroll">
       <table>
         <thead><tr><th>Data</th><th>Pessoa</th><th>Produto</th><th>Qtd</th><th>Valor</th><th>Status</th></tr></thead>
         <tbody>
@@ -77,6 +85,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% else %}
       <p class="muted">Nenhum lancamento ainda.</p>
       {% endif %}

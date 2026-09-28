@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import date
+from datetime import date, timedelta
 
 from flask import Flask, flash, redirect, render_template, request, send_file, url_for
 from werkzeug.exceptions import HTTPException
@@ -59,11 +59,21 @@ def dashboard():
             (ESTOQUE_BAIXO,),
         )
         estoque_baixo = cur.fetchall()
+
+        cur.execute(
+            """SELECT COALESCE(SUM(valor_total), 0) AS faturamento,
+                      COALESCE(SUM(custo_total), 0) AS custo
+               FROM pedidos WHERE data >= %s""",
+            (date.today().replace(day=1).isoformat(),),
+        )
+        mes = cur.fetchone()
     conn.close()
+
+    lucro_mes = mes["faturamento"] - mes["custo"]
 
     return render_template(
         "dashboard.html", totais=totais, ranking=ranking, ultimos=ultimos,
-        estoque_baixo=estoque_baixo,
+        estoque_baixo=estoque_baixo, lucro_mes=lucro_mes,
     )
 
 
@@ -109,15 +119,19 @@ def _registrar_venda(categoria, template):
                     quantidade = item["quantidade"]
                     valor_unitario = produto["preco"]
                     valor_total = round(valor_unitario * quantidade, 2)
+                    custo_unitario = produto["custo"] or 0
+                    custo_total = round(custo_unitario * quantidade, 2)
                     data_pagamento = data_lanc if pago else None
 
                     cur.execute(
                         """INSERT INTO pedidos
                            (data, pessoa_id, produto_id, quantidade, valor_unitario, valor_total,
-                            forma_pagamento, pago, data_pagamento, observacoes)
-                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                            custo_unitario, custo_total, forma_pagamento, pago, data_pagamento,
+                            observacoes)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                         (data_lanc, pessoa_id, item["produto_id"], quantidade, valor_unitario,
-                         valor_total, forma_pagamento, pago, data_pagamento, observacoes),
+                         valor_total, custo_unitario, custo_total, forma_pagamento, pago,
+                         data_pagamento, observacoes),
                     )
                     cur.execute(
                         "UPDATE produtos SET estoque = estoque - %s WHERE id = %s",
@@ -322,6 +336,7 @@ def cardapio():
                 numero_item = request.form.get("numero_item", type=int)
                 nome = request.form.get("nome", "").strip()
                 preco = request.form.get("preco", type=float)
+                custo = request.form.get("custo", type=float) or 0
                 categoria = request.form.get("categoria") or "mercadinho"
                 if categoria not in CATEGORIAS:
                     categoria = "mercadinho"
@@ -331,9 +346,9 @@ def cardapio():
                 else:
                     try:
                         cur.execute(
-                            """INSERT INTO produtos (numero_item, nome, preco, categoria, estoque)
-                               VALUES (%s, %s, %s, %s, %s)""",
-                            (numero_item, nome, preco, categoria, estoque_inicial),
+                            """INSERT INTO produtos (numero_item, nome, preco, custo, categoria, estoque)
+                               VALUES (%s, %s, %s, %s, %s, %s)""",
+                            (numero_item, nome, preco, custo, categoria, estoque_inicial),
                         )
                         conn.commit()
                         flash(f"Produto '{nome}' adicionado.", "ok")
@@ -343,9 +358,13 @@ def cardapio():
             elif acao == "editar":
                 produto_id = request.form.get("produto_id", type=int)
                 preco = request.form.get("preco", type=float)
-                cur.execute("UPDATE produtos SET preco = %s WHERE id = %s", (preco, produto_id))
+                custo = request.form.get("custo", type=float) or 0
+                cur.execute(
+                    "UPDATE produtos SET preco = %s, custo = %s WHERE id = %s",
+                    (preco, custo, produto_id),
+                )
                 conn.commit()
-                flash("Preco atualizado.", "ok")
+                flash("Produto atualizado.", "ok")
             elif acao == "desativar":
                 produto_id = request.form.get("produto_id", type=int)
                 cur.execute("UPDATE produtos SET ativo = FALSE WHERE id = %s", (produto_id,))
@@ -362,6 +381,89 @@ def cardapio():
         "cardapio.html",
         mercadinho=[p for p in produtos if p["categoria"] == "mercadinho"],
         restaurante=[p for p in produtos if p["categoria"] == "restaurante"],
+    )
+
+
+def _calcular_periodo(req):
+    periodo = req.args.get("periodo", "mes")
+    hoje = date.today()
+    if periodo == "hoje":
+        inicio, fim = hoje, hoje
+    elif periodo == "7dias":
+        inicio, fim = hoje - timedelta(days=6), hoje
+    elif periodo == "personalizado":
+        data_inicio = req.args.get("data_inicio") or hoje.replace(day=1).isoformat()
+        data_fim = req.args.get("data_fim") or hoje.isoformat()
+        return periodo, data_inicio, data_fim
+    else:
+        periodo = "mes"
+        inicio, fim = hoje.replace(day=1), hoje
+    return periodo, inicio.isoformat(), fim.isoformat()
+
+
+@app.route("/financeiro")
+def financeiro():
+    conn = get_connection()
+    periodo, data_inicio, data_fim = _calcular_periodo(request)
+    categoria = request.args.get("categoria", "todas")
+    if categoria not in CATEGORIAS:
+        categoria = "todas"
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT
+                 COALESCE(SUM(p.valor_total), 0) AS faturamento,
+                 COALESCE(SUM(p.custo_total), 0) AS custo,
+                 COALESCE(SUM(p.valor_total) FILTER (WHERE p.pago), 0) AS recebido,
+                 COALESCE(SUM(p.valor_total) FILTER (WHERE NOT p.pago), 0) AS a_receber,
+                 COUNT(*) AS qtd_vendas
+               FROM pedidos p
+               JOIN produtos pr ON pr.id = p.produto_id
+               WHERE p.data BETWEEN %s AND %s
+                 AND (%s = 'todas' OR pr.categoria = %s)""",
+            (data_inicio, data_fim, categoria, categoria),
+        )
+        totais = cur.fetchone()
+
+        cur.execute(
+            """SELECT pr.categoria,
+                 COALESCE(SUM(p.valor_total), 0) AS faturamento,
+                 COALESCE(SUM(p.custo_total), 0) AS custo
+               FROM pedidos p JOIN produtos pr ON pr.id = p.produto_id
+               WHERE p.data BETWEEN %s AND %s
+               GROUP BY pr.categoria""",
+            (data_inicio, data_fim),
+        )
+        por_categoria = cur.fetchall()
+
+        cur.execute(
+            """SELECT pr.nome, pr.categoria, SUM(p.quantidade) AS qtd_vendida,
+                 SUM(p.valor_total) AS faturamento, SUM(p.valor_total - p.custo_total) AS lucro
+               FROM pedidos p JOIN produtos pr ON pr.id = p.produto_id
+               WHERE p.data BETWEEN %s AND %s
+                 AND (%s = 'todas' OR pr.categoria = %s)
+               GROUP BY pr.id, pr.nome, pr.categoria
+               ORDER BY lucro DESC
+               LIMIT 10""",
+            (data_inicio, data_fim, categoria, categoria),
+        )
+        top_produtos = cur.fetchall()
+    conn.close()
+
+    faturamento = totais["faturamento"]
+    custo = totais["custo"]
+    lucro = faturamento - custo
+    margem = (lucro / faturamento * 100) if faturamento else 0
+
+    for row in por_categoria:
+        row["lucro"] = row["faturamento"] - row["custo"]
+        row["margem"] = (row["lucro"] / row["faturamento"] * 100) if row["faturamento"] else 0
+
+    return render_template(
+        "financeiro.html",
+        periodo=periodo, data_inicio=data_inicio, data_fim=data_fim, categoria=categoria,
+        faturamento=faturamento, custo=custo, lucro=lucro, margem=margem, totais=totais,
+        por_categoria=por_categoria, top_produtos=top_produtos,
     )
 
 

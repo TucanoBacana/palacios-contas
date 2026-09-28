@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Financeiro{% endblock %}
+{% block content %}
+  <h1>Financeiro</h1>
+  <p class="muted">Faturamento e lucro considerando todas as vendas registradas no periodo (pagas ou nao). O lucro usa o custo cadastrado em cada produto do Cardapio.</p>
+
+  <form method="get" class="filtro-financeiro" id="form-filtro">
+    <div class="field">
+      <label for="periodo">Periodo</label>
+      <select id="periodo" name="periodo" onchange="this.form.submit()">
+        <option value="hoje" {{ 'selected' if periodo == 'hoje' }}>Hoje</option>
+        <option value="7dias" {{ 'selected' if periodo == '7dias' }}>Ultimos 7 dias</option>
+        <option value="mes" {{ 'selected' if periodo == 'mes' }}>Mes atual</option>
+        <option value="personalizado" {{ 'selected' if periodo == 'personalizado' }}>Personalizado</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="categoria">Categoria</label>
+      <select id="categoria" name="categoria" onchange="this.form.submit()">
+        <option value="todas" {{ 'selected' if categoria == 'todas' }}>Todas</option>
+        <option value="mercadinho" {{ 'selected' if categoria == 'mercadinho' }}>Mercadinho</option>
+        <option value="restaurante" {{ 'selected' if categoria == 'restaurante' }}>Restaurante</option>
+      </select>
+    </div>
+    {% if periodo == 'personalizado' %}
+    <div class="field">
+      <label for="data_inicio">De</label>
+      <input type="date" id="data_inicio" name="data_inicio" value="{{ data_inicio }}">
+    </div>
+    <div class="field">
+      <label for="data_fim">Ate</label>
+      <input type="date" id="data_fim" name="data_fim" value="{{ data_fim }}">
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+    {% endif %}
+  </form>
+  <p class="muted periodo-legenda">Periodo: {{ data_inicio }} ate {{ data_fim }}</p>
+
+  <div class="cards">
+    <div class="card">
+      <span class="card-label">Faturamento</span>
+      <span class="card-valor">R$ {{ "%.2f"|format(faturamento) }}</span>
+      <span class="card-sub">{{ totais.qtd_vendas }} venda(s)</span>
+    </div>
+    <div class="card">
+      <span class="card-label">Custo</span>
+      <span class="card-valor">R$ {{ "%.2f"|format(custo) }}</span>
+    </div>
+    <div class="card card-lucro">
+      <span class="card-label">Lucro</span>
+      <span class="card-valor">R$ {{ "%.2f"|format(lucro) }}</span>
+      <span class="card-sub">margem de {{ "%.1f"|format(margem) }}%</span>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card card-pago">
+      <span class="card-label">Ja recebido</span>
+      <span class="card-valor">R$ {{ "%.2f"|format(totais.recebido) }}</span>
+    </div>
+    <div class="card card-pendente">
+      <span class="card-label">A receber</span>
+      <span class="card-valor">R$ {{ "%.2f"|format(totais.a_receber) }}</span>
+    </div>
+  </div>
+
+  <h2>Por categoria</h2>
+  {% if por_categoria %}
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Categoria</th><th>Faturamento</th><th>Custo</th><th>Lucro</th><th>Margem</th></tr></thead>
+    <tbody>
+      {% for c in por_categoria %}
+      <tr>
+        <td>
+          <span class="tag {{ 'tag-restaurante' if c.categoria == 'restaurante' else 'tag-mercadinho' }}">
+            {{ 'Restaurante' if c.categoria == 'restaurante' else 'Mercadinho' }}
+          </span>
+        </td>
+        <td>R$ {{ "%.2f"|format(c.faturamento) }}</td>
+        <td>R$ {{ "%.2f"|format(c.custo) }}</td>
+        <td>R$ {{ "%.2f"|format(c.lucro) }}</td>
+        <td>{{ "%.1f"|format(c.margem) }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">Nenhuma venda nesse periodo.</p>
+  {% endif %}
+
+  <h2>Produtos mais lucrativos no periodo</h2>
+  {% if top_produtos %}
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Produto</th><th>Qtd vendida</th><th>Faturamento</th><th>Lucro</th></tr></thead>
+    <tbody>
+      {% for p in top_produtos %}
+      <tr>
+        <td>
+          <span class="tag {{ 'tag-restaurante' if p.categoria == 'restaurante' else 'tag-mercadinho' }}">
+            {{ 'R' if p.categoria == 'restaurante' else 'M' }}
+          </span>
+          {{ p.nome }}
+        </td>
+        <td>{{ p.qtd_vendida|round(1) }}</td>
+        <td>R$ {{ "%.2f"|format(p.faturamento) }}</td>
+        <td>R$ {{ "%.2f"|format(p.lucro) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">Nenhuma venda nesse periodo.</p>
+  {% endif %}
+
+  <p class="muted aviso-custo">
+    Produto com custo 0 cadastrado conta lucro igual ao preco cheio de venda -
+    confira em <a href="{{ url_for('cardapio') }}">Cardapio</a> se todos os produtos tem o custo preenchido.
+  </p>
+{% endblock %}

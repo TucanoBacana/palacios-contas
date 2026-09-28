@@ -120,9 +120,16 @@ pra rolar - e toque nos produtos pra montar a conta.
   pago de uma vez ou item por item. Excluir um lancamento devolve a
   quantidade pro estoque automaticamente.
 - **Cardapio**: cadastrar produto novo (escolhendo a categoria), editar preco
-  ou remover item. O estoque se ajusta pela aba Estoque, nao aqui.
-- **Exportar Excel**: gera um `.xlsx` com lancamentos, cardapio (com estoque
-  atual) e o historico de entradas de estoque - para backup ou conferencia.
+  e custo, ou remover item. O estoque se ajusta pela aba Estoque, nao aqui.
+- **Financeiro**: faturamento, custo e lucro no periodo escolhido (hoje, 7
+  dias, mes atual ou datas personalizadas), separado por Mercadinho e
+  Restaurante, com os produtos mais lucrativos. O lucro usa o campo "custo"
+  de cada produto (Cardapio) - **depois de importar a planilha, os produtos
+  entram com custo R$ 0,00**, entao vale preencher isso no Cardapio antes de
+  confiar no numero do lucro.
+- **Exportar Excel**: gera um `.xlsx` com lancamentos (com custo e lucro por
+  linha), cardapio (com estoque e custo atual) e o historico de entradas de
+  estoque - para backup ou conferencia.
 
 O estoque nunca bloqueia uma venda: se ficar zerado ou negativo, so aparece
 um aviso (laranja/vermelho) - a ideia e nunca perder um registro de venda por

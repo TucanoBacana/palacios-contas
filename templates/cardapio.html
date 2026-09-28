@@ -2,23 +2,26 @@
 {% block title %}Cardapio{% endblock %}
 {% block content %}
   <h1>Cardapio</h1>
-  <p class="muted">Para ajustar o estoque, use a aba <a href="{{ url_for('estoque') }}">Estoque</a>.</p>
+  <p class="muted">Para ajustar o estoque, use a aba <a href="{{ url_for('estoque') }}">Estoque</a>. O custo e usado para calcular o lucro em <a href="{{ url_for('financeiro') }}">Financeiro</a>.</p>
 
   <h2>Mercadinho</h2>
+  <div class="table-scroll">
   <table>
-    <thead><tr><th>Produto</th><th>Preco</th><th>Estoque</th><th></th></tr></thead>
+    <thead><tr><th>Produto</th><th>Preco / Custo</th><th>Margem</th><th>Estoque</th><th></th></tr></thead>
     <tbody>
       {% for prod in mercadinho %}
       <tr>
         <td>{{ prod.nome }}</td>
         <td>
-          <form method="post" class="inline-form">
+          <form method="post" class="inline-form linha-precos">
             <input type="hidden" name="acao" value="editar">
             <input type="hidden" name="produto_id" value="{{ prod.id }}">
-            <input type="number" step="0.01" name="preco" value="{{ prod.preco }}" class="preco-input">
+            <input type="number" step="0.01" name="preco" value="{{ prod.preco }}" class="preco-input" placeholder="preco">
+            <input type="number" step="0.01" name="custo" value="{{ prod.custo }}" class="preco-input" placeholder="custo">
             <button type="submit" class="btn btn-sm">Salvar</button>
           </form>
         </td>
+        <td>{{ (((prod.preco - prod.custo) / prod.preco * 100) if prod.preco else 0)|round(0) }}%</td>
         <td>{{ prod.estoque|round(1) }}</td>
         <td>
           <form method="post" class="inline-form" onsubmit="return confirm('Remover este produto do cardapio?');">
@@ -29,26 +32,30 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="muted">Nenhum produto cadastrado.</td></tr>
+      <tr><td colspan="5" class="muted">Nenhum produto cadastrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
 
   <h2>Restaurante</h2>
+  <div class="table-scroll">
   <table>
-    <thead><tr><th>Produto</th><th>Preco</th><th>Estoque</th><th></th></tr></thead>
+    <thead><tr><th>Produto</th><th>Preco / Custo</th><th>Margem</th><th>Estoque</th><th></th></tr></thead>
     <tbody>
       {% for prod in restaurante %}
       <tr>
         <td>{{ prod.nome }}</td>
         <td>
-          <form method="post" class="inline-form">
+          <form method="post" class="inline-form linha-precos">
             <input type="hidden" name="acao" value="editar">
             <input type="hidden" name="produto_id" value="{{ prod.id }}">
-            <input type="number" step="0.01" name="preco" value="{{ prod.preco }}" class="preco-input">
+            <input type="number" step="0.01" name="preco" value="{{ prod.preco }}" class="preco-input" placeholder="preco">
+            <input type="number" step="0.01" name="custo" value="{{ prod.custo }}" class="preco-input" placeholder="custo">
             <button type="submit" class="btn btn-sm">Salvar</button>
           </form>
         </td>
+        <td>{{ (((prod.preco - prod.custo) / prod.preco * 100) if prod.preco else 0)|round(0) }}%</td>
         <td>{{ prod.estoque|round(1) }}</td>
         <td>
           <form method="post" class="inline-form" onsubmit="return confirm('Remover este produto do cardapio?');">
@@ -59,10 +66,11 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="muted">Nenhum produto cadastrado.</td></tr>
+      <tr><td colspan="5" class="muted">Nenhum produto cadastrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
 
   <h2>Adicionar produto</h2>
   <form method="post" class="form-lancamento">
@@ -79,9 +87,15 @@
         <label for="nome">Produto</label>
         <input type="text" id="nome" name="nome" required>
       </div>
+    </div>
+    <div class="field-row">
       <div class="field">
-        <label for="preco">Preco</label>
+        <label for="preco">Preco de venda</label>
         <input type="number" step="0.01" id="preco" name="preco" required>
+      </div>
+      <div class="field">
+        <label for="custo">Custo (quanto custa pra voces)</label>
+        <input type="number" step="0.01" id="custo" name="custo" value="0">
       </div>
     </div>
     <div class="field-row">

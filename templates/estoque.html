@@ -36,6 +36,7 @@
 
   <h2>Ultimas entradas</h2>
   {% if entradas %}
+  <div class="table-scroll">
   <table>
     <thead><tr><th>Data</th><th>Categoria</th><th>Produto</th><th>Quantidade</th><th>Obs</th></tr></thead>
     <tbody>
@@ -50,6 +51,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p class="muted">Nenhuma entrada registrada ainda.</p>
   {% endif %}

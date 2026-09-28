@@ -10,9 +10,10 @@ from db import get_connection
 
 CABECALHO_PEDIDOS = [
     "DATA", "PESSOA", "CATEGORIA", "N. ITEM", "PRODUTO", "QUANTIDADE", "VALOR UNITARIO",
-    "VALOR TOTAL", "FORMA DE PAGAMENTO", "PAGO?", "DATA DO PAGAMENTO", "OBSERVACOES",
+    "VALOR TOTAL", "CUSTO UNITARIO", "CUSTO TOTAL", "LUCRO", "FORMA DE PAGAMENTO", "PAGO?",
+    "DATA DO PAGAMENTO", "OBSERVACOES",
 ]
-CABECALHO_CARDAPIO = ["N. Item", "Produto", "Categoria", "Preco", "Estoque atual"]
+CABECALHO_CARDAPIO = ["N. Item", "Produto", "Categoria", "Preco", "Custo", "Estoque atual"]
 CABECALHO_ESTOQUE = ["Data", "Categoria", "Produto", "Quantidade", "Observacoes"]
 
 
@@ -27,8 +28,8 @@ def exportar(destino=None):
     cur = conn.cursor()
     cur.execute(
         """SELECT p.data, pe.nome AS pessoa, pr.categoria, pr.numero_item, pr.nome AS produto,
-                  p.quantidade, p.valor_unitario, p.valor_total, p.forma_pagamento,
-                  p.pago, p.data_pagamento, p.observacoes
+                  p.quantidade, p.valor_unitario, p.valor_total, p.custo_unitario, p.custo_total,
+                  p.forma_pagamento, p.pago, p.data_pagamento, p.observacoes
            FROM pedidos p
            JOIN pessoas pe ON pe.id = p.pessoa_id
            JOIN produtos pr ON pr.id = p.produto_id
@@ -40,6 +41,7 @@ def exportar(destino=None):
         ws.append([
             row["data"], row["pessoa"], row["categoria"], row["numero_item"], row["produto"],
             row["quantidade"], row["valor_unitario"], row["valor_total"],
+            row["custo_unitario"], row["custo_total"], row["valor_total"] - row["custo_total"],
             row["forma_pagamento"], "PAGO" if row["pago"] else "PENDENTE",
             row["data_pagamento"], row["observacoes"],
         ])
@@ -47,12 +49,13 @@ def exportar(destino=None):
     ws2 = wb.create_sheet("CARDAPIO")
     ws2.append(CABECALHO_CARDAPIO)
     cur.execute(
-        "SELECT numero_item, nome, categoria, preco, estoque FROM produtos WHERE ativo "
+        "SELECT numero_item, nome, categoria, preco, custo, estoque FROM produtos WHERE ativo "
         "ORDER BY categoria, numero_item"
     )
     produtos = cur.fetchall()
     for row in produtos:
-        ws2.append([row["numero_item"], row["nome"], row["categoria"], row["preco"], row["estoque"]])
+        ws2.append([row["numero_item"], row["nome"], row["categoria"], row["preco"], row["custo"],
+                    row["estoque"]])
 
     ws3 = wb.create_sheet("ENTRADAS_ESTOQUE")
     ws3.append(CABECALHO_ESTOQUE)
