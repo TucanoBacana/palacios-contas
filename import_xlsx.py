@@ -29,7 +29,7 @@ def to_iso_date(valor):
     return date.today().isoformat()
 
 
-def importar(caminho_xlsx, reset=False):
+def importar(caminho_xlsx, reset=False, min_row_pedidos=2):
     init_db()
     conn = get_connection()
     cur = conn.cursor()
@@ -65,7 +65,7 @@ def importar(caminho_xlsx, reset=False):
 
     # --- pedidos existentes (ignora linhas em branco / template) ---
     pedidos_importados = 0
-    for row in ws_pedidos.iter_rows(min_row=2, values_only=True):
+    for row in ws_pedidos.iter_rows(min_row=min_row_pedidos, values_only=True):
         (data_val, pessoa, num_item, produto_nome, qtd, valor_unit,
          valor_total, forma_pag, pago, data_pagto, obs) = (list(row) + [None] * 11)[:11]
 
@@ -118,10 +118,14 @@ if __name__ == "__main__":
                          help="Caminho da planilha original")
     parser.add_argument("--reset", action="store_true",
                          help="Apaga tudo que ja existe no banco antes de importar")
+    parser.add_argument("--min-row-pedidos", type=int, default=2,
+                         help="Primeira linha da aba de lancamentos a importar (use para "
+                              "importar so as linhas novas de uma planilha atualizada, sem "
+                              "duplicar o que ja foi importado antes)")
     args = parser.parse_args()
 
     try:
-        importar(args.xlsx, reset=args.reset)
+        importar(args.xlsx, reset=args.reset, min_row_pedidos=args.min_row_pedidos)
     except FileNotFoundError:
         print(f"Arquivo nao encontrado: {args.xlsx}")
         sys.exit(1)
