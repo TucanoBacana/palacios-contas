@@ -1,61 +1,114 @@
+{% from "_ui.html" import icon %}
+{% set itens = [
+  ('dashboard', 'Painel', 'home', ['dashboard']),
+  ('mercadinho', 'Mercadinho', 'bag', ['mercadinho']),
+  ('restaurante', 'Restaurante', 'utensils', ['restaurante']),
+  ('contas', 'Contas', 'wallet', ['contas', 'conta_pessoa']),
+  ('estoque', 'Estoque', 'box', ['estoque']),
+  ('financeiro', 'Financeiro', 'chart', ['financeiro']),
+  ('cardapio', 'Cardápio', 'list', ['cardapio']),
+] %}
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="theme-color" content="#b8232f">
-  <title>{% block title %}PALACIO'S{% endblock %} - Contas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#120f1c" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5f2fc" media="(prefers-color-scheme: light)">
+  <meta name="color-scheme" content="dark light">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="PALACIO'S">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.svg') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>{% block title %}Contas{% endblock %} – PALACIO'S</title>
 </head>
 <body>
-  <input type="checkbox" id="nav-toggle" class="nav-toggle-checkbox">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-orb" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke-width="3" style="stroke:var(--brand)"/><circle cx="12" cy="12" r="2.2" stroke="none" style="fill:var(--ok)"/></symbol>
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
+      <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 8h12l1 12H5L6 8z"/><path d="M9 8a3 3 0 0 1 6 0"/></symbol>
+      <symbol id="i-utensils" viewBox="0 0 24 24"><path d="M6 3v7a2 2 0 0 0 4 0V3"/><path d="M8 3v18"/><path d="M17 21V3c-2.4 1.6-3.5 4.6-3.5 8.5H17"/></symbol>
+      <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h12v4"/><path d="M4 7v11a2 2 0 0 0 2 2h14V9H6a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="14.5" r="1"/></symbol>
+      <symbol id="i-box" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5"/><path d="M12 12v9"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M8 16v-4"/><path d="M12 16V8"/><path d="M16 16v-6"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></symbol>
+      <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18.5" cy="12" r="1.4"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3L12 4z"/><path d="M12 10v4"/><path d="M12 17.4v.1"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14"/><path d="M10 7V4h4v3"/><path d="M7 7l1 13h8l1-13"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+      <symbol id="i-search-off" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/><path d="M9 9l4 4M13 9l-4 4"/></symbol>
+    </defs>
+  </svg>
 
-  <header class="topbar">
-    <a class="brand" href="{{ url_for('dashboard') }}">PALACIO'S</a>
-    <label for="nav-toggle" class="nav-burger" aria-label="Abrir menu">
-      <span></span><span></span><span></span>
-    </label>
-    <nav class="mainnav">
-      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' else '' }}">Painel</a>
-      <a href="{{ url_for('mercadinho') }}" class="{{ 'active' if request.endpoint == 'mercadinho' else '' }}">Mercadinho</a>
-      <a href="{{ url_for('restaurante') }}" class="{{ 'active' if request.endpoint == 'restaurante' else '' }}">Restaurante</a>
-      <a href="{{ url_for('estoque') }}" class="{{ 'active' if request.endpoint == 'estoque' else '' }}">Estoque</a>
-      <a href="{{ url_for('financeiro') }}" class="{{ 'active' if request.endpoint == 'financeiro' else '' }}">Financeiro</a>
-      <a href="{{ url_for('contas') }}" class="{{ 'active' if request.endpoint in ('contas','conta_pessoa') else '' }}">Contas</a>
-      <a href="{{ url_for('cardapio') }}" class="{{ 'active' if request.endpoint == 'cardapio' else '' }}">Cardapio</a>
-      <a href="{{ url_for('exportar_backup') }}">Exportar Excel</a>
-    </nav>
-  </header>
-  <label for="nav-toggle" class="nav-backdrop"></label>
+  <a class="skip" href="#conteudo">Ir para o conteúdo</a>
+  <input type="checkbox" id="mais-toggle" class="toggle-mais" aria-hidden="true" tabindex="-1">
 
-  <main class="container">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for categoria, msg in messages %}
-          <div class="flash {{ 'flash-erro' if categoria == 'erro' else 'flash-ok' }}">{{ msg }}</div>
+  <div class="shell">
+    <aside class="rail">
+      <a class="marca" href="{{ url_for('dashboard') }}">{{ icon('orb') }}PALACIO'S</a>
+      <nav aria-label="Principal">
+        {% for endpoint, nome, ico, ativos in itens %}
+        <a href="{{ url_for(endpoint) }}" class="{{ 'ativo' if request.endpoint in ativos }}"{% if request.endpoint in ativos %} aria-current="page"{% endif %}>{{ icon(ico) }}{{ nome }}</a>
         {% endfor %}
-      {% endif %}
-    {% endwith %}
+        <a href="{{ url_for('exportar_backup') }}">{{ icon('download') }}Exportar Excel</a>
+      </nav>
+    </aside>
 
-    {% block content %}{% endblock %}
-  </main>
+    <div class="stage">
+      <header class="topbar">
+        <a class="marca" href="{{ url_for('dashboard') }}">{{ icon('orb') }}PALACIO'S</a>
+      </header>
 
-  <nav class="bottomnav">
-    <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' else '' }}">
-      <span class="ico">&#8962;</span><span>Painel</span>
-    </a>
-    <a href="{{ url_for('mercadinho') }}" class="{{ 'active' if request.endpoint == 'mercadinho' else '' }}">
-      <span class="ico">&#128717;</span><span>Mercado</span>
-    </a>
-    <a href="{{ url_for('restaurante') }}" class="{{ 'active' if request.endpoint == 'restaurante' else '' }}">
-      <span class="ico">&#127860;</span><span>Restaurante</span>
-    </a>
-    <a href="{{ url_for('contas') }}" class="{{ 'active' if request.endpoint in ('contas','conta_pessoa') else '' }}">
-      <span class="ico">&#128179;</span><span>Contas</span>
-    </a>
-    <label for="nav-toggle" class="{{ 'active' if request.endpoint in ('estoque','cardapio','financeiro') else '' }}">
-      <span class="ico">&#8942;</span><span>Mais</span>
-    </label>
+      <main id="conteudo" class="page">
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+          {% if mensagens %}
+          <div class="toasts" role="status" aria-live="polite">
+            {% for tipo, msg in mensagens %}
+            <div class="toast {{ 'toast-erro' if tipo == 'erro' }}">
+              {{ icon('alert' if tipo == 'erro' else 'check') }}<span>{{ msg }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <nav class="dock" aria-label="Navegação principal">
+    {% for endpoint, nome, ico, ativos in itens[:4] %}
+    <a href="{{ url_for(endpoint) }}" class="{{ 'ativo' if request.endpoint in ativos }}"{% if request.endpoint in ativos %} aria-current="page"{% endif %}>{{ icon(ico) }}<span>{{ nome if nome != 'Mercadinho' else 'Mercado' }}</span></a>
+    {% endfor %}
+    <label for="mais-toggle" role="button" tabindex="0" class="{{ 'ativo' if request.endpoint in ['estoque', 'financeiro', 'cardapio'] }}">{{ icon('dots') }}<span>Mais</span></label>
   </nav>
+
+  <label class="scrim" for="mais-toggle"></label>
+  <div class="sheet" role="dialog" aria-label="Mais opções">
+    <div class="sheet-alca"></div>
+    <div class="sheet-grade">
+      {% for endpoint, nome, ico, ativos in itens[4:] %}
+      <a href="{{ url_for(endpoint) }}" class="{{ 'ativo' if request.endpoint in ativos }}">{{ icon(ico) }}{{ nome }}</a>
+      {% endfor %}
+      <a href="{{ url_for('exportar_backup') }}">{{ icon('download') }}Exportar Excel</a>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

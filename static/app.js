@@ -1,82 +1,187 @@
 (function () {
-  // ---- tela de venda (mercadinho / restaurante): carrinho por toque ----
-  const grid = document.querySelector(".grid-produtos");
-  if (grid) {
-    const cart = {}; // produto_id -> {nome, preco, qtd}
-    const barra = document.getElementById("barra-carrinho");
-    const bcQtd = document.getElementById("bc-qtd");
-    const bcTotal = document.getElementById("bc-total");
-    const itensInput = document.getElementById("itens-input");
-    const form = document.getElementById("form-venda");
+  "use strict";
 
-    function formatarMoeda(v) {
-      return "R$ " + v.toFixed(2).replace(".", ",");
-    }
+  var $ = function (sel, raiz) { return (raiz || document).querySelector(sel); };
+  var $$ = function (sel, raiz) { return Array.prototype.slice.call((raiz || document).querySelectorAll(sel)); };
+  var semAcento = function (s) { return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); };
+  var moeda = function (v) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); };
 
-    function atualizarResumo() {
-      let qtdTotal = 0;
-      let valorTotal = 0;
-      for (const id in cart) {
-        qtdTotal += cart[id].qtd;
-        valorTotal += cart[id].qtd * cart[id].preco;
-      }
-      if (qtdTotal > 0) {
-        barra.hidden = false;
-        bcQtd.textContent = qtdTotal + (qtdTotal === 1 ? " item" : " itens");
-        bcTotal.textContent = formatarMoeda(valorTotal);
-      } else {
-        barra.hidden = true;
-      }
-    }
+  /* ---------- avisos somem sozinhos ---------- */
+  $$(".toast").forEach(function (el) {
+    var fechar = function () {
+      el.classList.add("saindo");
+      setTimeout(function () { el.remove(); }, 320);
+    };
+    setTimeout(fechar, el.classList.contains("toast-erro") ? 9000 : 4500);
+    el.addEventListener("click", fechar);
+  });
 
-    function atualizarCard(card, id) {
-      const stepper = card.querySelector(".cp-stepper");
-      const qtdEl = card.querySelector(".cp-qtd");
-      const qtd = cart[id] ? cart[id].qtd : 0;
-      qtdEl.textContent = qtd;
-      if (qtd > 0) {
-        stepper.hidden = false;
-        card.classList.add("selecionado");
-      } else {
-        stepper.hidden = true;
-        card.classList.remove("selecionado");
-      }
-    }
-
-    grid.addEventListener("click", function (ev) {
-      const card = ev.target.closest(".card-produto");
-      if (!card) return;
-      const id = card.dataset.id;
-      const nome = card.dataset.nome;
-      const preco = parseFloat(card.dataset.preco);
-      if (!cart[id]) cart[id] = { nome: nome, preco: preco, qtd: 0 };
-
-      const acaoEl = ev.target.closest("[data-acao]");
-      const acao = acaoEl ? acaoEl.dataset.acao : "mais";
-
-      if (acao === "menos") {
-        cart[id].qtd = Math.max(0, cart[id].qtd - 1);
-      } else {
-        cart[id].qtd += 1;
-      }
-      if (cart[id].qtd === 0) delete cart[id];
-
-      atualizarCard(card, id);
-      atualizarResumo();
-    });
-
-    if (form) {
-      form.addEventListener("submit", function (ev) {
-        const itens = Object.keys(cart).map(function (id) {
-          return { produto_id: id, quantidade: cart[id].qtd };
-        });
-        if (itens.length === 0) {
-          ev.preventDefault();
-          alert("Toque em pelo menos um produto antes de registrar.");
-          return;
+  /* ---------- menu "Mais" (celular) ---------- */
+  var toggleMais = $("#mais-toggle");
+  if (toggleMais) {
+    var rotulo = $('label[for="mais-toggle"][role="button"]');
+    if (rotulo) {
+      rotulo.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggleMais.checked = !toggleMais.checked;
         }
-        itensInput.value = JSON.stringify(itens);
       });
     }
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") toggleMais.checked = false;
+    });
+  }
+
+  /* ---------- evita registrar duas vezes (duplo toque) ---------- */
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!(form instanceof HTMLFormElement) || form.method.toLowerCase() !== "post") return;
+    setTimeout(function () {
+      if (e.defaultPrevented) return;
+      $$('button[type="submit"]').forEach(function (b) {
+        if (b.form === form) {
+          b.disabled = true;
+          b.setAttribute("aria-busy", "true");
+        }
+      });
+    }, 0);
+  });
+  window.addEventListener("pageshow", function (e) {
+    if (!e.persisted) return;
+    $$('button[type="submit"]:disabled').forEach(function (b) {
+      b.disabled = false;
+      b.removeAttribute("aria-busy");
+    });
+  });
+
+  /* ---------- busca instantanea em listas ---------- */
+  $$("[data-filtro]").forEach(function (campo) {
+    var alvo = $(campo.getAttribute("data-filtro"));
+    var vazio = campo.getAttribute("data-vazio") ? $(campo.getAttribute("data-vazio")) : null;
+    if (!alvo) return;
+    var itens = $$("[data-busca]", alvo);
+    campo.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && campo.hasAttribute("data-sem-enviar")) e.preventDefault();
+    });
+    campo.addEventListener("input", function () {
+      var q = semAcento(campo.value.trim());
+      var achou = 0;
+      itens.forEach(function (el) {
+        var ok = !q || semAcento(el.getAttribute("data-busca")).indexOf(q) !== -1;
+        el.hidden = !ok;
+        if (ok) achou++;
+      });
+      if (vazio) vazio.hidden = achou > 0;
+    });
+  });
+
+  /* ---------- comanda (venda / encomenda) ---------- */
+  var form = $("#form-venda");
+  if (!form) return;
+
+  var categoria = (form.closest(".venda") || document.body).getAttribute("data-cat") || "mercadinho";
+  var chave = "palacios:comanda:" + categoria;
+  var tiles = $$(".tile", form);
+  var comanda = $("#comanda");
+  var rotuloQtd = $("#cmd-qtd");
+  var rotuloTotal = $("#cmd-total");
+  var itensInput = $("#itens-input");
+  var avisoErro = $("#venda-erro");
+  var pessoa = $("#pessoa");
+  var carrinho = {}; // id -> quantidade
+
+  function guardar() {
+    try {
+      sessionStorage.setItem(chave, JSON.stringify({ pessoa: pessoa ? pessoa.value : "", itens: carrinho }));
+    } catch (err) { /* modo privado: segue sem guardar */ }
+  }
+  function esquecer() {
+    try { sessionStorage.removeItem(chave); } catch (err) { /* ignora */ }
+  }
+
+  function pintar(tile) {
+    var id = tile.getAttribute("data-id");
+    var qtd = carrinho[id] || 0;
+    $(".tile-qtd", tile).textContent = qtd;
+    $(".tile-passo", tile).hidden = qtd === 0;
+    tile.classList.toggle("selecionado", qtd > 0);
+  }
+
+  function resumir() {
+    var itens = 0;
+    var total = 0;
+    tiles.forEach(function (tile) {
+      var qtd = carrinho[tile.getAttribute("data-id")] || 0;
+      itens += qtd;
+      total += qtd * parseFloat(tile.getAttribute("data-preco"));
+    });
+    comanda.hidden = itens === 0;
+    rotuloQtd.textContent = itens + (itens === 1 ? " item" : " itens");
+    rotuloTotal.textContent = moeda(total);
+    if (itens > 0 && avisoErro) avisoErro.hidden = true;
+    guardar();
+  }
+
+  function mudar(tile, delta) {
+    var id = tile.getAttribute("data-id");
+    var nova = Math.max(0, (carrinho[id] || 0) + delta);
+    if (nova === 0) delete carrinho[id]; else carrinho[id] = nova;
+    if (navigator.vibrate) navigator.vibrate(8);
+    pintar(tile);
+    resumir();
+  }
+
+  var grade = $(".tiles", form);
+  grade.addEventListener("click", function (e) {
+    var botao = e.target.closest("button");
+    var tile = e.target.closest(".tile");
+    if (!botao || !tile) return;
+    mudar(tile, botao.getAttribute("data-acao") === "menos" ? -1 : 1);
+  });
+
+  var limpar = $("#cmd-limpar");
+  if (limpar) {
+    limpar.addEventListener("click", function () {
+      carrinho = {};
+      tiles.forEach(pintar);
+      resumir();
+    });
+  }
+
+  if (pessoa) pessoa.addEventListener("input", guardar);
+
+  form.addEventListener("submit", function (e) {
+    var lista = Object.keys(carrinho).map(function (id) {
+      return { produto_id: id, quantidade: carrinho[id] };
+    });
+    if (lista.length === 0) {
+      e.preventDefault();
+      if (avisoErro) {
+        avisoErro.hidden = false;
+        avisoErro.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
+    itensInput.value = JSON.stringify(lista);
+  });
+
+  /* Se acabou de registrar com sucesso, comeca limpo. Se deu erro, devolve o que estava montado. */
+  var houveSucesso = $(".toast:not(.toast-erro)");
+  if (houveSucesso) {
+    esquecer();
+  } else {
+    try {
+      var salvo = JSON.parse(sessionStorage.getItem(chave) || "null");
+      if (salvo) {
+        if (pessoa && !pessoa.value && salvo.pessoa) pessoa.value = salvo.pessoa;
+        tiles.forEach(function (tile) {
+          var qtd = salvo.itens && salvo.itens[tile.getAttribute("data-id")];
+          if (qtd > 0) carrinho[tile.getAttribute("data-id")] = qtd;
+          pintar(tile);
+        });
+        resumir();
+      }
+    } catch (err) { /* ignora estado invalido */ }
   }
 })();

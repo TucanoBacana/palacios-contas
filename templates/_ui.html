@@ -1,0 +1,19 @@
+{% macro icon(name, cls='') -%}
+<svg class="ic {{ cls }}" aria-hidden="true" focusable="false"><use href="#i-{{ name }}"></use></svg>
+{%- endmacro %}
+
+{% macro tag_cat(c) -%}
+<span class="pill cat-{{ c }}">{{ 'Restaurante' if c == 'restaurante' else 'Mercadinho' }}</span>
+{%- endmacro %}
+
+{% macro status(pago, data=none) -%}
+{% if pago -%}
+<span class="pill pill-ok">{{ icon('check') }}Pago{% if data %} em {{ data|data_br }}{% endif %}</span>
+{%- else -%}
+<span class="pill pill-pend">Em aberto</span>
+{%- endif %}
+{%- endmacro %}
+
+{% macro iniciais(nome) -%}
+{{ nome.replace('(', ' ').replace(')', ' ').split()[:2]|map('first')|join|upper }}
+{%- endmacro %}

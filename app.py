@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from flask import Flask, flash, redirect, render_template, request, send_file, url_for
 from werkzeug.exceptions import HTTPException
@@ -8,13 +8,44 @@ from werkzeug.exceptions import HTTPException
 from db import CATEGORIAS, get_connection, get_or_create_pessoa, init_db
 from export_xlsx import exportar
 
-FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Cartao", "Transferencia", "Outro"]
+FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Cartão", "Transferência", "Outro"]
 ESTOQUE_BAIXO = 5
 
 app = Flask(__name__)
 app.secret_key = "palacios-contas"  # uso interno, sem dados sensiveis
 
 init_db()
+
+
+def _brl(valor):
+    valor = float(valor or 0)
+    texto = f"{abs(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{'-' if valor < 0 else ''}R$ {texto}"
+
+
+@app.template_filter("brl")
+def filtro_brl(valor):
+    return _brl(valor)
+
+
+@app.template_filter("qtd")
+def filtro_qtd(valor):
+    valor = float(valor or 0)
+    return str(int(valor)) if valor == int(valor) else f"{valor:.1f}".replace(".", ",")
+
+
+@app.template_filter("pct")
+def filtro_pct(valor, casas=0):
+    return f"{float(valor or 0):.{casas}f}".replace(".", ",") + "%"
+
+
+@app.template_filter("data_br")
+def filtro_data_br(valor):
+    if isinstance(valor, (date, datetime)):
+        return valor.strftime("%d/%m/%Y")
+    if isinstance(valor, str) and len(valor) == 10 and valor[4] == "-" and valor[7] == "-":
+        return f"{valor[8:10]}/{valor[5:7]}/{valor[0:4]}"
+    return valor or ""
 
 
 @app.route("/")
@@ -31,7 +62,7 @@ def dashboard():
         totais = cur.fetchone()
 
         cur.execute(
-            """SELECT pe.nome, SUM(p.valor_total) AS total
+            """SELECT pe.id, pe.nome, SUM(p.valor_total) AS total
                FROM pedidos p JOIN pessoas pe ON pe.id = p.pessoa_id
                WHERE NOT p.pago
                GROUP BY pe.id, pe.nome
@@ -41,7 +72,7 @@ def dashboard():
         ranking = cur.fetchall()
 
         cur.execute(
-            """SELECT p.id, p.data, pe.nome AS pessoa, pr.nome AS produto, pr.categoria,
+            """SELECT p.id, p.data, pe.id AS pessoa_id, pe.nome AS pessoa, pr.nome AS produto, pr.categoria,
                       p.quantidade, p.valor_total, p.pago
                FROM pedidos p
                JOIN pessoas pe ON pe.id = p.pessoa_id
@@ -141,7 +172,7 @@ def _registrar_venda(categoria, template):
                     qtd_itens += 1
             conn.commit()
             conn.close()
-            flash(f"Registrado para {pessoa_nome}: {qtd_itens} item(ns), R$ {total_geral:.2f}", "ok")
+            flash(f"Registrado para {pessoa_nome}: {qtd_itens} item(ns), {_brl(total_geral)}", "ok")
             return redirect(url_for(request.endpoint))
 
     with conn.cursor() as cur:
@@ -184,7 +215,7 @@ def estoque():
         data_entrada = request.form.get("data") or date.today().isoformat()
 
         if not produto_id or not quantidade or quantidade <= 0:
-            flash("Selecione o produto e informe uma quantidade valida.", "erro")
+            flash("Selecione o produto e informe uma quantidade válida.", "erro")
         else:
             with conn.cursor() as cur:
                 cur.execute(
@@ -263,7 +294,7 @@ def conta_pessoa(pessoa_id):
         pedidos = cur.fetchall()
     conn.close()
     if not pessoa:
-        flash("Pessoa nao encontrada.", "erro")
+        flash("Pessoa não encontrada.", "erro")
         return redirect(url_for("contas"))
     return render_template("conta_pessoa.html", pessoa=pessoa, pedidos=pedidos,
                             hoje=date.today().isoformat(), formas=FORMAS_PAGAMENTO)
@@ -320,9 +351,9 @@ def excluir_pedido(pedido_id):
     conn.commit()
     conn.close()
     if not pedido:
-        flash("Lancamento nao encontrado.", "erro")
+        flash("Lançamento não encontrado.", "erro")
         return redirect(url_for("contas"))
-    flash("Lancamento excluido e estoque devolvido.", "ok")
+    flash("Lançamento excluído e estoque devolvido.", "ok")
     return redirect(url_for("conta_pessoa", pessoa_id=pedido["pessoa_id"]))
 
 
@@ -342,7 +373,7 @@ def cardapio():
                     categoria = "mercadinho"
                 estoque_inicial = request.form.get("estoque_inicial", type=float) or 0
                 if not nome or preco is None:
-                    flash("Preencha nome e preco do produto.", "erro")
+                    flash("Preencha o nome e o preço do produto.", "erro")
                 else:
                     try:
                         cur.execute(
@@ -354,7 +385,7 @@ def cardapio():
                         flash(f"Produto '{nome}' adicionado.", "ok")
                     except Exception:
                         conn.rollback()
-                        flash("Ja existe um produto com esse numero de item.", "erro")
+                        flash("Já existe um produto com esse número de item.", "erro")
             elif acao == "editar":
                 produto_id = request.form.get("produto_id", type=int)
                 preco = request.form.get("preco", type=float)
@@ -369,7 +400,7 @@ def cardapio():
                 produto_id = request.form.get("produto_id", type=int)
                 cur.execute("UPDATE produtos SET ativo = FALSE WHERE id = %s", (produto_id,))
                 conn.commit()
-                flash("Produto removido do cardapio.", "ok")
+                flash("Produto removido do cardápio.", "ok")
         conn.close()
         return redirect(url_for("cardapio"))
 
@@ -476,8 +507,8 @@ def exportar_backup():
 @app.errorhandler(404)
 def pagina_nao_encontrada(e):
     return render_template(
-        "erro.html", codigo=404, titulo="Pagina nao encontrada",
-        mensagem="Esse endereco nao existe. Confira o link ou volte para o painel.",
+        "erro.html", codigo=404, titulo="Página não encontrada",
+        mensagem="Esse endereço não existe. Confira o link ou volte ao Painel.",
     ), 404
 
 
@@ -489,8 +520,8 @@ def erro_interno(e):
     app.logger.exception("Erro nao tratado")
     return render_template(
         "erro.html", codigo=500, titulo="Algo deu errado",
-        mensagem="Tivemos um problema para completar essa acao. Nada foi perdido - "
-                 "tente novamente em alguns segundos.",
+        mensagem="Não deu para concluir essa ação. Tente de novo em alguns segundos; "
+                 "se continuar, avise quem cuida do sistema.",
     ), 500
 
 

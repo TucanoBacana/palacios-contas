@@ -1,88 +1,106 @@
 {% extends "base.html" %}
-{% set eh_restaurante = request.endpoint == 'restaurante' %}
-{% block title %}{{ 'Restaurante' if eh_restaurante else 'Mercadinho' }}{% endblock %}
+{% from "_ui.html" import icon %}
+{% set restaurante = request.endpoint == 'restaurante' %}
+{% block title %}{{ 'Nova encomenda' if restaurante else 'Nova venda' }}{% endblock %}
 {% block content %}
-  <h1>{{ 'Nova encomenda - Restaurante' if eh_restaurante else 'Mercadinho' }}</h1>
-  <p class="muted">
-    {% if eh_restaurante %}
-      Toque nos itens preparados (coxinha, esfiha, tortas...) para montar a encomenda.
-      O valor puxa do cardapio e abate do estoque de produzidos.
-    {% else %}
-      Toque nos produtos para adicionar. O total calcula sozinho e ja abate do estoque.
-    {% endif %}
-  </p>
+<div class="venda" data-cat="{{ 'restaurante' if restaurante else 'mercadinho' }}">
+
+  <header class="page-head venda-topo">
+    <span class="venda-icone">{{ icon('utensils' if restaurante else 'bag') }}</span>
+    <div>
+      <h1>{{ 'Nova encomenda' if restaurante else 'Nova venda' }}</h1>
+      <p class="lede">{{ 'Restaurante' if restaurante else 'Mercadinho' }}. O valor vem do cardápio e o estoque desconta sozinho.</p>
+    </div>
+  </header>
 
   {% if not produtos %}
-  <div class="aviso-vazio">
-    Nenhum produto cadastrado nesta categoria ainda.
-    <a href="{{ url_for('cardapio') }}">Cadastrar no Cardapio &rarr;</a>
-  </div>
+  <p class="aviso">
+    {{ icon('alert') }}
+    <span>Ainda não há produtos de {{ 'restaurante' if restaurante else 'mercadinho' }}. <a href="{{ url_for('cardapio') }}">Cadastre no Cardápio</a>.</span>
+  </p>
   {% endif %}
 
-  <form method="post" id="form-venda" class="form-venda" autocomplete="off">
-    <div class="field">
-      <label for="pessoa">Pessoa</label>
-      <input list="lista-pessoas" id="pessoa" name="pessoa" required placeholder="Nome da pessoa" class="input-grande">
+  <form method="post" id="form-venda" autocomplete="off">
+
+    <h2 class="passo"><b>1</b>Quem está levando?</h2>
+    <div class="campo">
+      <label for="pessoa" class="sr-only">Nome da pessoa</label>
+      <input list="lista-pessoas" id="pessoa" name="pessoa" class="input-grande" required
+             placeholder="Digite o nome ou escolha da lista" autocapitalize="characters" enterkeyhint="next">
       <datalist id="lista-pessoas">
         {% for p in pessoas %}<option value="{{ p.nome }}">{% endfor %}
       </datalist>
     </div>
 
-    <div class="grid-produtos">
+    <h2 class="passo"><b>2</b>O que levou?</h2>
+    <div class="busca">
+      {{ icon('search') }}
+      <input type="search" id="busca-produto" placeholder="Buscar produto" aria-label="Buscar produto"
+             data-filtro=".tiles" data-vazio="#sem-produto" data-sem-enviar enterkeyhint="search">
+    </div>
+    <p id="venda-erro" class="aviso erro" hidden role="alert">
+      {{ icon('alert') }}<span>Toque em pelo menos um produto antes de registrar.</span>
+    </p>
+
+    <div class="tiles">
       {% for prod in produtos %}
-      <button type="button" class="card-produto" data-id="{{ prod.id }}" data-nome="{{ prod.nome }}"
-              data-preco="{{ prod.preco }}">
-        <span class="cp-nome">{{ prod.nome }}</span>
-        <span class="cp-preco">R$ {{ "%.2f"|format(prod.preco) }}</span>
-        {% if prod.estoque <= 5 %}
-          <span class="cp-estoque {{ 'cp-estoque-zero' if prod.estoque <= 0 else 'cp-estoque-baixo' }}">
-            estoque: {{ prod.estoque|round(1) }}
-          </span>
-        {% endif %}
-        <span class="cp-stepper" hidden>
-          <span class="cp-btn cp-menos" data-acao="menos">&minus;</span>
-          <span class="cp-qtd">0</span>
-          <span class="cp-btn cp-mais" data-acao="mais">&plus;</span>
-        </span>
-      </button>
+      <div class="tile" data-id="{{ prod.id }}" data-preco="{{ prod.preco }}" data-busca="{{ prod.nome }}">
+        <button type="button" class="tile-add" aria-label="Adicionar {{ prod.nome }}">
+          <span class="tile-nome">{{ prod.nome }}</span>
+          {% if prod.estoque <= 0 %}
+            <span class="pill pill-mudo tile-estoque">sem estoque</span>
+          {% elif prod.estoque <= 5 %}
+            <span class="pill pill-aviso tile-estoque">restam {{ prod.estoque|qtd }}</span>
+          {% endif %}
+          <span class="tile-preco">{{ prod.preco|brl }}</span>
+        </button>
+        <div class="tile-passo" hidden>
+          <button type="button" data-acao="menos" aria-label="Tirar um {{ prod.nome }}">{{ icon('minus') }}</button>
+          <output class="tile-qtd" aria-live="polite">0</output>
+          <button type="button" data-acao="mais" aria-label="Mais um {{ prod.nome }}">{{ icon('plus') }}</button>
+        </div>
+      </div>
       {% endfor %}
     </div>
+    <p id="sem-produto" class="sem-resultado" hidden>Nenhum produto com esse nome.</p>
 
-    <details class="mais-opcoes">
-      <summary>Mais opcoes (pagamento, data, observacoes)</summary>
-      <div class="field-row">
-        <div class="field">
-          <label for="forma_pagamento">Forma de pagamento</label>
-          <select id="forma_pagamento" name="forma_pagamento">
-            {% for f in formas %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
-          </select>
+    <details class="painel mais-opcoes">
+      <summary>Pagamento, data e observações {{ icon('chevron') }}</summary>
+      <div class="painel-corpo">
+        <div class="campos">
+          <div class="campo">
+            <label for="forma_pagamento">Forma de pagamento</label>
+            <select id="forma_pagamento" name="forma_pagamento">
+              {% for f in formas %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="campo">
+            <label for="data">Data da venda</label>
+            <input type="date" id="data" name="data" value="{{ hoje }}">
+          </div>
         </div>
-        <div class="field">
-          <label for="data">Data</label>
-          <input type="date" id="data" name="data" value="{{ hoje }}">
+        <label class="escolha"><input type="checkbox" id="pago" name="pago"> Já foi pago na hora</label>
+        <div class="campo">
+          <label for="observacoes">Observações (opcional)</label>
+          <input type="text" id="observacoes" name="observacoes" placeholder="Ex.: combinou de pagar na sexta">
         </div>
-      </div>
-      <div class="field field-checkbox">
-        <label><input type="checkbox" id="pago" name="pago"> Ja foi pago no ato</label>
-      </div>
-      <div class="field">
-        <label for="observacoes">Observacoes (opcional)</label>
-        <input type="text" id="observacoes" name="observacoes" placeholder="Ex: pagou parcial, combinou para sexta...">
       </div>
     </details>
 
     <input type="hidden" name="itens" id="itens-input">
   </form>
 
-  <div class="spacer-carrinho"></div>
+  <div class="spacer-comanda"></div>
 
-  <div class="barra-carrinho" id="barra-carrinho" hidden>
-    <div class="bc-info">
-      <span id="bc-qtd">0 itens</span>
-      <strong id="bc-total">R$ 0,00</strong>
+  <div class="comanda" id="comanda" hidden>
+    <div class="comanda-in">
+      <div class="comanda-info">
+        <span id="cmd-qtd">0 itens</span>
+        <strong id="cmd-total">R$ 0,00</strong>
+      </div>
+      <button type="button" class="btn btn-quieto btn-sm" id="cmd-limpar">Limpar</button>
+      <button type="submit" form="form-venda" class="btn btn-primario btn-grande">Registrar</button>
     </div>
-    <button type="submit" form="form-venda" class="btn btn-primary btn-grande">Registrar</button>
   </div>
-
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</div>
 {% endblock %}

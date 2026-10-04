@@ -1,0 +1,12 @@
+{
+  "name": "PALACIO'S - Contas",
+  "short_name": "PALACIO'S",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#120F1C",
+  "theme_color": "#120F1C",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

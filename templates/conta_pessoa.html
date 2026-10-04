@@ -1,65 +1,94 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, tag_cat, status, iniciais %}
 {% block title %}{{ pessoa.nome }}{% endblock %}
 {% block content %}
-  <p><a href="{{ url_for('contas') }}">&larr; Voltar</a></p>
-  <h1>{{ pessoa.nome }}</h1>
+  {% set abertos = pedidos|rejectattr('pago')|list %}
+  {% set pagos = pedidos|selectattr('pago')|list %}
+  {% set devendo = abertos|sum(attribute='valor_total') %}
 
-  {% set pendentes = pedidos|selectattr('pago', 'equalto', 0)|list %}
-  {% if pendentes %}
-  <form method="post" action="{{ url_for('pagar_tudo', pessoa_id=pessoa.id) }}" class="quitar-tudo">
-    <span>{{ pendentes|length }} item(ns) pendente(s)</span>
-    <select name="forma_pagamento">
-      {% for f in formas %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
-    </select>
-    <input type="date" name="data" value="{{ hoje }}">
-    <button type="submit" class="btn btn-primary">Marcar tudo como pago</button>
+  <a class="voltar" href="{{ url_for('contas') }}">{{ icon('back') }}Contas</a>
+
+  <header class="pessoa-topo">
+    <span class="avatar av-{{ pessoa.id % 5 }}" aria-hidden="true">{{ iniciais(pessoa.nome) }}</span>
+    <div>
+      <h1>{{ pessoa.nome }}</h1>
+      <p class="lede" style="margin-top: 4px">
+        {% if abertos %}Deve <strong class="valor" style="color: var(--brand)">{{ devendo|brl }}</strong> em {{ abertos|length }} {{ 'item' if abertos|length == 1 else 'itens' }}.
+        {% else %}Nada em aberto.{% endif %}
+      </p>
+    </div>
+  </header>
+
+  {% if abertos %}
+  <form method="post" action="{{ url_for('pagar_tudo', pessoa_id=pessoa.id) }}" class="painel quitar">
+    <strong>Dar baixa em tudo ({{ devendo|brl }})</strong>
+    <div class="quitar-campos">
+      <div class="campo">
+        <label for="forma-tudo">Forma de pagamento</label>
+        <select id="forma-tudo" name="forma_pagamento">
+          {% for f in formas %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="campo">
+        <label for="data-tudo">Data do pagamento</label>
+        <input type="date" id="data-tudo" name="data" value="{{ hoje }}">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primario btn-grande">{{ icon('check') }}Marcar tudo como pago</button>
   </form>
+
+  <h2>Em aberto</h2>
+  <ul class="linhas">
+    {% for p in abertos %}
+    <li class="linha linha-simples">
+      <span class="linha-titulo">{{ p.produto }}</span>
+      <span class="linha-sub">
+        {{ p.quantidade|qtd }}× em {{ p.data|data_br }} {{ tag_cat(p.categoria) }}
+        {% if p.observacoes %}<br>{{ p.observacoes }}{% endif %}
+      </span>
+      <span class="linha-fim"><span class="valor">{{ p.valor_total|brl }}</span></span>
+      <span class="item-acoes">
+        <form method="post" action="{{ url_for('marcar_pago', pedido_id=p.id) }}">
+          <input type="hidden" name="forma_pagamento" value="{{ p.forma_pagamento or 'Pix' }}">
+          <input type="hidden" name="data" value="{{ hoje }}">
+          <button type="submit" class="btn btn-sm">{{ icon('check') }}Marcar pago</button>
+        </form>
+        <form method="post" action="{{ url_for('excluir_pedido', pedido_id=p.id) }}"
+              onsubmit="return confirm('Excluir este lançamento? O estoque volta.');">
+          <button type="submit" class="btn btn-sm btn-quieto btn-perigo" aria-label="Excluir {{ p.produto }}">{{ icon('trash') }}Excluir</button>
+        </form>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
   {% endif %}
 
-  <div class="table-scroll">
-  <table>
-    <thead>
-      <tr><th>Data</th><th>Produto</th><th>Qtd</th><th>Valor</th><th>Forma</th><th>Status</th><th>Obs</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for p in pedidos %}
-      <tr>
-        <td>{{ p.data }}</td>
-        <td>
-          <span class="tag {{ 'tag-restaurante' if p.categoria == 'restaurante' else 'tag-mercadinho' }}">
-            {{ 'R' if p.categoria == 'restaurante' else 'M' }}
-          </span>
-          {{ p.produto }}
-        </td>
-        <td>{{ p.quantidade|round(1) }}</td>
-        <td>R$ {{ "%.2f"|format(p.valor_total) }}</td>
-        <td>{{ p.forma_pagamento or '-' }}</td>
-        <td>
-          {% if p.pago %}
-            <span class="tag tag-ok">pago em {{ p.data_pagamento }}</span>
-          {% else %}
-            <span class="tag tag-pendente">pendente</span>
-          {% endif %}
-        </td>
-        <td>{{ p.observacoes or '' }}</td>
-        <td class="acoes">
-          {% if not p.pago %}
-          <form method="post" action="{{ url_for('marcar_pago', pedido_id=p.id) }}" class="inline-form">
-            <input type="hidden" name="forma_pagamento" value="{{ p.forma_pagamento or 'Pix' }}">
-            <input type="hidden" name="data" value="{{ hoje }}">
-            <button type="submit" class="btn btn-sm">Marcar pago</button>
-          </form>
-          {% endif %}
-          <form method="post" action="{{ url_for('excluir_pedido', pedido_id=p.id) }}" class="inline-form"
-                onsubmit="return confirm('Excluir este lancamento?');">
-            <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
-          </form>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="8" class="muted">Nenhum lancamento para essa pessoa.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
+  {% if pagos %}
+  <h2>Já pago</h2>
+  <ul class="linhas">
+    {% for p in pagos %}
+    <li class="linha linha-simples">
+      <span class="linha-titulo">{{ p.produto }}</span>
+      <span class="linha-sub">
+        {{ p.quantidade|qtd }}× em {{ p.data|data_br }} {{ tag_cat(p.categoria) }}
+        {% if p.observacoes %}<br>{{ p.observacoes }}{% endif %}
+      </span>
+      <span class="linha-fim">
+        <span class="valor">{{ p.valor_total|brl }}</span>
+        {{ status(true, p.data_pagamento) }}
+      </span>
+      <span class="item-acoes">
+        <form method="post" action="{{ url_for('excluir_pedido', pedido_id=p.id) }}"
+              onsubmit="return confirm('Excluir este lançamento? O estoque volta.');">
+          <button type="submit" class="btn btn-sm btn-quieto btn-perigo" aria-label="Excluir {{ p.produto }}">{{ icon('trash') }}Excluir</button>
+        </form>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if not pedidos %}
+  <p class="vazio">Nenhum lançamento para esta pessoa.</p>
+  {% endif %}
 {% endblock %}

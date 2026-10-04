@@ -1,93 +1,103 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, tag_cat, status, iniciais %}
 {% block title %}Painel{% endblock %}
 {% block content %}
-  <h1>Painel</h1>
+  {% set total = totais.total_pendente + totais.total_pago %}
+  {% set recebido_pct = (totais.total_pago / total * 100) if total else 0 %}
 
-  <div class="cards">
-    <div class="card card-pendente">
-      <span class="card-label">Total pendente</span>
-      <span class="card-valor">R$ {{ "%.2f"|format(totais.total_pendente) }}</span>
-      <span class="card-sub">{{ totais.qtd_pendente }} lancamento(s) em aberto</span>
+  <header class="page-head">
+    <h1>Painel</h1>
+    <p class="lede">O que ainda falta receber e o que precisa de atenção hoje.</p>
+  </header>
+
+  <section class="destaque" aria-label="Resumo do que falta receber">
+    <p class="destaque-rotulo">A receber</p>
+    <p class="destaque-valor">{{ totais.total_pendente|brl }}</p>
+    <div class="barra {{ 'vazia' if not total }}" role="img"
+         aria-label="{{ recebido_pct|pct }} do total já foi recebido">
+      <i style="width: {{ recebido_pct|round(1) }}%"></i>
     </div>
-    <div class="card card-pago">
-      <span class="card-label">Total ja pago</span>
-      <span class="card-valor">R$ {{ "%.2f"|format(totais.total_pago) }}</span>
-    </div>
-    <a href="{{ url_for('financeiro') }}" class="card card-lucro">
-      <span class="card-label">Lucro este mes</span>
-      <span class="card-valor">R$ {{ "%.2f"|format(lucro_mes) }}</span>
-      <span class="card-sub">ver detalhes em Financeiro &rarr;</span>
+    <dl class="dados">
+      <div>
+        <dt><span class="bolinha ok"></span>Já recebido</dt>
+        <dd>{{ totais.total_pago|brl }}</dd>
+      </div>
+      <div>
+        <dt><span class="bolinha pend"></span>Em aberto</dt>
+        <dd>{{ totais.qtd_pendente }} {{ 'lançamento' if totais.qtd_pendente == 1 else 'lançamentos' }}</dd>
+      </div>
+      <div>
+        <dt>Lucro no mês</dt>
+        <dd><a href="{{ url_for('financeiro') }}">{{ lucro_mes|brl }}</a></dd>
+      </div>
+    </dl>
+  </section>
+
+  <div class="acoes-grade">
+    <a class="acao" href="{{ url_for('mercadinho') }}">
+      <span class="acao-icone">{{ icon('bag') }}</span>
+      <span><strong>Nova venda</strong><small>Mercadinho</small></span>
+    </a>
+    <a class="acao restaurante" href="{{ url_for('restaurante') }}">
+      <span class="acao-icone">{{ icon('utensils') }}</span>
+      <span><strong>Nova encomenda</strong><small>Restaurante</small></span>
     </a>
   </div>
 
-  <div class="acoes-rapidas">
-    <a href="{{ url_for('mercadinho') }}" class="btn btn-primary">+ Venda mercadinho</a>
-    <a href="{{ url_for('restaurante') }}" class="btn btn-primary">+ Encomenda restaurante</a>
-  </div>
-
   {% if estoque_baixo %}
-  <div class="alerta-estoque">
-    <strong>Estoque baixo</strong>
-    <ul>
-      {% for p in estoque_baixo %}
-      <li>
-        <span class="tag {{ 'tag-restaurante' if p.categoria == 'restaurante' else 'tag-mercadinho' }}">
-          {{ 'Restaurante' if p.categoria == 'restaurante' else 'Mercadinho' }}
-        </span>
-        {{ p.nome }} - {{ p.estoque|round(1) }} un.
-      </li>
-      {% endfor %}
-    </ul>
-    <a href="{{ url_for('estoque') }}">Repor estoque &rarr;</a>
-  </div>
+  <section class="aviso" aria-label="Estoque baixo">
+    {{ icon('alert') }}
+    <div>
+      <strong>{{ estoque_baixo|length }} {{ 'produto' if estoque_baixo|length == 1 else 'produtos' }} com estoque baixo</strong>
+      <div class="chips">
+        {% for p in estoque_baixo %}
+        <span class="pill {{ 'cat-restaurante' if p.categoria == 'restaurante' else 'cat-mercadinho' }}">{{ p.nome }}: {{ p.estoque|qtd }}</span>
+        {% endfor %}
+      </div>
+      <a href="{{ url_for('estoque') }}">Repor estoque</a>
+    </div>
+  </section>
   {% endif %}
 
-  <div class="grid-2">
+  <div class="duas-colunas">
     <section>
       <h2>Quem mais deve</h2>
       {% if ranking %}
-      <div class="table-scroll">
-      <table>
-        <thead><tr><th>Pessoa</th><th>Pendente</th></tr></thead>
-        <tbody>
-          {% for r in ranking %}
-          <tr><td>{{ r.nome }}</td><td>R$ {{ "%.2f"|format(r.total) }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      </div>
+      {% set maior = ranking[0].total %}
+      <ol class="linhas">
+        {% for r in ranking %}
+        <li class="rank-item">
+          <a href="{{ url_for('conta_pessoa', pessoa_id=r.id) }}">
+            <span class="rank-nome">{{ r.nome }}</span>
+            <span class="valor">{{ r.total|brl }}</span>
+            <span class="rank-barra"><i style="width: {{ (r.total / maior * 100)|round(1) }}%"></i></span>
+          </a>
+        </li>
+        {% endfor %}
+      </ol>
       {% else %}
-      <p class="muted">Nenhuma conta pendente.</p>
+      <p class="vazio">Ninguém deve nada agora.</p>
       {% endif %}
     </section>
 
     <section>
-      <h2>Ultimos lancamentos</h2>
+      <h2>Últimos lançamentos</h2>
       {% if ultimos %}
-      <div class="table-scroll">
-      <table>
-        <thead><tr><th>Data</th><th>Pessoa</th><th>Produto</th><th>Qtd</th><th>Valor</th><th>Status</th></tr></thead>
-        <tbody>
-          {% for u in ultimos %}
-          <tr>
-            <td>{{ u.data }}</td>
-            <td>{{ u.pessoa }}</td>
-            <td>
-              <span class="tag {{ 'tag-restaurante' if u.categoria == 'restaurante' else 'tag-mercadinho' }}">
-                {{ 'R' if u.categoria == 'restaurante' else 'M' }}
-              </span>
-              {{ u.produto }}
-            </td>
-            <td>{{ u.quantidade|round(1) }}</td>
-            <td>R$ {{ "%.2f"|format(u.valor_total) }}</td>
-            <td>{% if u.pago %}<span class="tag tag-ok">pago</span>{% else %}<span class="tag tag-pendente">pendente</span>{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      </div>
+      <ul class="linhas">
+        {% for u in ultimos %}
+        <li class="linha">
+          <span class="avatar av-{{ u.pessoa_id % 5 }}" aria-hidden="true">{{ iniciais(u.pessoa) }}</span>
+          <span class="linha-titulo">{{ u.pessoa }}</span>
+          <span class="linha-sub">{{ u.quantidade|qtd }}× {{ u.produto }}, {{ u.data|data_br }}</span>
+          <span class="linha-fim">
+            <span class="valor">{{ u.valor_total|brl }}</span>
+            {{ status(u.pago) }}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
       {% else %}
-      <p class="muted">Nenhum lancamento ainda.</p>
+      <p class="vazio">Nenhum lançamento ainda. <a href="{{ url_for('mercadinho') }}">Registrar a primeira venda</a></p>
       {% endif %}
     </section>
   </div>

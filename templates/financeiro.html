@@ -1,123 +1,128 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, tag_cat %}
 {% block title %}Financeiro{% endblock %}
 {% block content %}
-  <h1>Financeiro</h1>
-  <p class="muted">Faturamento e lucro considerando todas as vendas registradas no periodo (pagas ou nao). O lucro usa o custo cadastrado em cada produto do Cardapio.</p>
+  {% set recebido_pct = (totais.recebido / faturamento * 100) if faturamento else 0 %}
 
-  <form method="get" class="filtro-financeiro" id="form-filtro">
-    <div class="field">
-      <label for="periodo">Periodo</label>
-      <select id="periodo" name="periodo" onchange="this.form.submit()">
-        <option value="hoje" {{ 'selected' if periodo == 'hoje' }}>Hoje</option>
-        <option value="7dias" {{ 'selected' if periodo == '7dias' }}>Ultimos 7 dias</option>
-        <option value="mes" {{ 'selected' if periodo == 'mes' }}>Mes atual</option>
-        <option value="personalizado" {{ 'selected' if periodo == 'personalizado' }}>Personalizado</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="categoria">Categoria</label>
-      <select id="categoria" name="categoria" onchange="this.form.submit()">
-        <option value="todas" {{ 'selected' if categoria == 'todas' }}>Todas</option>
-        <option value="mercadinho" {{ 'selected' if categoria == 'mercadinho' }}>Mercadinho</option>
-        <option value="restaurante" {{ 'selected' if categoria == 'restaurante' }}>Restaurante</option>
-      </select>
-    </div>
+  <header class="page-head">
+    <h1>Financeiro</h1>
+    <p class="lede">Conta todas as vendas do período, pagas ou não. O lucro usa o custo cadastrado em cada produto.</p>
+  </header>
+
+  <div class="filtros">
+    <nav class="segmentos" aria-label="Período">
+      {% for chave, nome in [('hoje', 'Hoje'), ('7dias', '7 dias'), ('mes', 'Mês'), ('personalizado', 'Datas')] %}
+      <a href="{{ url_for('financeiro', periodo=chave, categoria=categoria, data_inicio=(data_inicio if chave == 'personalizado' else none), data_fim=(data_fim if chave == 'personalizado' else none)) }}"
+         {% if periodo == chave %}aria-current="page"{% endif %}>{{ nome }}</a>
+      {% endfor %}
+    </nav>
+    <nav class="segmentos" aria-label="Categoria">
+      {% for chave, nome in [('todas', 'Tudo'), ('mercadinho', 'Mercadinho'), ('restaurante', 'Restaurante')] %}
+      <a href="{{ url_for('financeiro', periodo=periodo, categoria=chave, data_inicio=(data_inicio if periodo == 'personalizado' else none), data_fim=(data_fim if periodo == 'personalizado' else none)) }}"
+         {% if categoria == chave %}aria-current="page"{% endif %}>{{ nome }}</a>
+      {% endfor %}
+    </nav>
     {% if periodo == 'personalizado' %}
-    <div class="field">
-      <label for="data_inicio">De</label>
-      <input type="date" id="data_inicio" name="data_inicio" value="{{ data_inicio }}">
-    </div>
-    <div class="field">
-      <label for="data_fim">Ate</label>
-      <input type="date" id="data_fim" name="data_fim" value="{{ data_fim }}">
-    </div>
-    <button type="submit" class="btn btn-primary">Filtrar</button>
+    <form method="get" class="filtro-datas">
+      <input type="hidden" name="periodo" value="personalizado">
+      <input type="hidden" name="categoria" value="{{ categoria }}">
+      <div class="campo">
+        <label for="data_inicio">De</label>
+        <input type="date" id="data_inicio" name="data_inicio" value="{{ data_inicio }}">
+      </div>
+      <div class="campo">
+        <label for="data_fim">Até</label>
+        <input type="date" id="data_fim" name="data_fim" value="{{ data_fim }}">
+      </div>
+      <button type="submit" class="btn btn-primario">Aplicar</button>
+    </form>
     {% endif %}
-  </form>
-  <p class="muted periodo-legenda">Periodo: {{ data_inicio }} ate {{ data_fim }}</p>
-
-  <div class="cards">
-    <div class="card">
-      <span class="card-label">Faturamento</span>
-      <span class="card-valor">R$ {{ "%.2f"|format(faturamento) }}</span>
-      <span class="card-sub">{{ totais.qtd_vendas }} venda(s)</span>
-    </div>
-    <div class="card">
-      <span class="card-label">Custo</span>
-      <span class="card-valor">R$ {{ "%.2f"|format(custo) }}</span>
-    </div>
-    <div class="card card-lucro">
-      <span class="card-label">Lucro</span>
-      <span class="card-valor">R$ {{ "%.2f"|format(lucro) }}</span>
-      <span class="card-sub">margem de {{ "%.1f"|format(margem) }}%</span>
-    </div>
+    <p class="periodo-texto">De {{ data_inicio|data_br }} até {{ data_fim|data_br }}</p>
   </div>
 
-  <div class="cards">
-    <div class="card card-pago">
-      <span class="card-label">Ja recebido</span>
-      <span class="card-valor">R$ {{ "%.2f"|format(totais.recebido) }}</span>
-    </div>
-    <div class="card card-pendente">
-      <span class="card-label">A receber</span>
-      <span class="card-valor">R$ {{ "%.2f"|format(totais.a_receber) }}</span>
-    </div>
-  </div>
-
-  <h2>Por categoria</h2>
-  {% if por_categoria %}
-  <div class="table-scroll">
-  <table>
-    <thead><tr><th>Categoria</th><th>Faturamento</th><th>Custo</th><th>Lucro</th><th>Margem</th></tr></thead>
-    <tbody>
-      {% for c in por_categoria %}
-      <tr>
-        <td>
-          <span class="tag {{ 'tag-restaurante' if c.categoria == 'restaurante' else 'tag-mercadinho' }}">
-            {{ 'Restaurante' if c.categoria == 'restaurante' else 'Mercadinho' }}
-          </span>
-        </td>
-        <td>R$ {{ "%.2f"|format(c.faturamento) }}</td>
-        <td>R$ {{ "%.2f"|format(c.custo) }}</td>
-        <td>R$ {{ "%.2f"|format(c.lucro) }}</td>
-        <td>{{ "%.1f"|format(c.margem) }}%</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% else %}
-  <p class="muted">Nenhuma venda nesse periodo.</p>
-  {% endif %}
-
-  <h2>Produtos mais lucrativos no periodo</h2>
-  {% if top_produtos %}
-  <div class="table-scroll">
-  <table>
-    <thead><tr><th>Produto</th><th>Qtd vendida</th><th>Faturamento</th><th>Lucro</th></tr></thead>
-    <tbody>
-      {% for p in top_produtos %}
-      <tr>
-        <td>
-          <span class="tag {{ 'tag-restaurante' if p.categoria == 'restaurante' else 'tag-mercadinho' }}">
-            {{ 'R' if p.categoria == 'restaurante' else 'M' }}
-          </span>
-          {{ p.nome }}
-        </td>
-        <td>{{ p.qtd_vendida|round(1) }}</td>
-        <td>R$ {{ "%.2f"|format(p.faturamento) }}</td>
-        <td>R$ {{ "%.2f"|format(p.lucro) }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% else %}
-  <p class="muted">Nenhuma venda nesse periodo.</p>
-  {% endif %}
-
-  <p class="muted aviso-custo">
-    Produto com custo 0 cadastrado conta lucro igual ao preco cheio de venda -
-    confira em <a href="{{ url_for('cardapio') }}">Cardapio</a> se todos os produtos tem o custo preenchido.
+  {% if custo == 0 and faturamento > 0 %}
+  <p class="aviso">
+    {{ icon('alert') }}
+    <span><strong>O lucro ainda não é real.</strong> Os produtos estão sem custo, então o lucro aparece igual ao faturamento. Preencha o custo no <a href="{{ url_for('cardapio') }}">Cardápio</a>.</span>
   </p>
+  {% endif %}
+
+  <section class="destaque" style="margin-top: 14px" aria-label="Lucro do período">
+    <p class="destaque-rotulo">Lucro</p>
+    <p class="destaque-valor ok">{{ lucro|brl }}</p>
+    <div class="barra {{ 'vazia' if not faturamento }}" role="img"
+         aria-label="{{ recebido_pct|pct }} do faturamento já foi recebido">
+      <i style="width: {{ recebido_pct|round(1) }}%"></i>
+    </div>
+    <dl class="dados">
+      <div>
+        <dt>Faturamento</dt>
+        <dd>{{ faturamento|brl }}</dd>
+      </div>
+      <div>
+        <dt>Custo</dt>
+        <dd>{{ custo|brl }}</dd>
+      </div>
+      <div>
+        <dt>Margem</dt>
+        <dd>{{ margem|pct(1) }}</dd>
+      </div>
+      <div>
+        <dt><span class="bolinha ok"></span>Já recebido</dt>
+        <dd>{{ totais.recebido|brl }}</dd>
+      </div>
+      <div>
+        <dt><span class="bolinha pend"></span>A receber</dt>
+        <dd>{{ totais.a_receber|brl }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <div class="duas-colunas">
+    <section>
+      <h2>Por categoria</h2>
+      {% if por_categoria %}
+      {% set maior_cat = por_categoria|map(attribute='faturamento')|max %}
+      <div>
+        {% for c in por_categoria %}
+        <div class="fin-linha">
+          <span class="fin-nome">{{ tag_cat(c.categoria) }}</span>
+          <span class="fin-fim">
+            <span class="valor">{{ c.lucro|brl }}</span>
+            <small>{{ c.faturamento|brl }} vendidos, margem {{ c.margem|pct }}</small>
+          </span>
+          <span class="barra-fina" style="--bar: var({{ '--cat-r' if c.categoria == 'restaurante' else '--cat-m' }})">
+            <i style="width: {{ (c.faturamento / maior_cat * 100)|round(1) if maior_cat else 0 }}%"></i>
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="vazio">Nenhuma venda neste período.</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>Produtos que mais rendem</h2>
+      {% if top_produtos %}
+      {% set maior_lucro = top_produtos|map(attribute='lucro')|max %}
+      <div>
+        {% for p in top_produtos %}
+        <div class="fin-linha">
+          <span class="fin-nome">{{ p.nome }}</span>
+          <span class="fin-fim">
+            <span class="valor">{{ p.lucro|brl }}</span>
+            <small>{{ p.qtd_vendida|qtd }} vendidos</small>
+          </span>
+          <span class="barra-fina" style="--bar: var({{ '--cat-r' if p.categoria == 'restaurante' else '--cat-m' }})">
+            <i style="width: {{ (p.lucro / maior_lucro * 100)|round(1) if maior_lucro > 0 else 0 }}%"></i>
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="vazio">Nenhuma venda neste período.</p>
+      {% endif %}
+    </section>
+  </div>
 {% endblock %}

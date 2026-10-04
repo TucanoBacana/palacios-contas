@@ -1,31 +1,44 @@
 {% extends "base.html" %}
-{% block title %}Contas por pessoa{% endblock %}
+{% from "_ui.html" import icon, iniciais %}
+{% block title %}Contas{% endblock %}
 {% block content %}
-  <h1>Contas por pessoa</h1>
+  <header class="page-head">
+    <h1>Contas</h1>
+    <p class="lede">Toque em uma pessoa para ver o que ela levou e dar baixa.</p>
+  </header>
 
-  <form method="get" class="form-busca">
-    <input type="search" name="q" value="{{ busca }}" placeholder="Buscar pessoa...">
-    <button type="submit" class="btn">Buscar</button>
+  <form method="get" class="busca" role="search">
+    {{ icon('search') }}
+    <input type="search" name="q" value="{{ busca }}" placeholder="Buscar pessoa" aria-label="Buscar pessoa"
+           data-filtro="#lista-pessoas" data-vazio="#sem-pessoa">
   </form>
 
-  <div class="table-scroll">
-  <table>
-    <thead>
-      <tr><th>Pessoa</th><th>Pendente</th><th>Ja pago</th><th>Itens em aberto</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for p in pessoas %}
-      <tr>
-        <td>{{ p.nome }}</td>
-        <td class="{{ 'valor-pendente' if p.pendente > 0 else '' }}">R$ {{ "%.2f"|format(p.pendente) }}</td>
-        <td>R$ {{ "%.2f"|format(p.pago) }}</td>
-        <td>{{ p.itens_pendentes }}</td>
-        <td><a class="btn btn-sm" href="{{ url_for('conta_pessoa', pessoa_id=p.id) }}">Ver detalhes</a></td>
-      </tr>
-      {% else %}
-      <tr><td colspan="5" class="muted">Nenhuma pessoa encontrada.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
+  {% if pessoas %}
+  <ul class="linhas" id="lista-pessoas" style="margin-top: 14px">
+    {% for p in pessoas %}
+    <li data-busca="{{ p.nome }}">
+      <a class="linha" href="{{ url_for('conta_pessoa', pessoa_id=p.id) }}">
+        <span class="avatar av-{{ p.id % 5 }}" aria-hidden="true">{{ iniciais(p.nome) }}</span>
+        <span class="linha-titulo">{{ p.nome }}</span>
+        <span class="linha-sub">
+          {% if p.itens_pendentes %}{{ p.itens_pendentes }} {{ 'item' if p.itens_pendentes == 1 else 'itens' }} em aberto{% else %}Nada em aberto{% endif %}
+        </span>
+        <span class="linha-fim">
+          {% if p.pendente > 0 %}
+            <span class="valor" style="color: var(--brand)">{{ p.pendente|brl }}</span>
+          {% else %}
+            <span class="pill pill-ok">{{ icon('check') }}Em dia</span>
+          {% endif %}
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  <p id="sem-pessoa" class="vazio" hidden>Ninguém com esse nome.</p>
+  {% else %}
+  <p class="vazio">
+    {% if busca %}Ninguém com o nome “{{ busca }}”. <a href="{{ url_for('contas') }}">Ver todas as contas</a>
+    {% else %}Ainda não há pessoas. Elas aparecem aqui quando você registra a primeira venda.{% endif %}
+  </p>
+  {% endif %}
 {% endblock %}
