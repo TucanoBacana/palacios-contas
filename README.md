@@ -153,11 +153,21 @@ para voltar ao Painel.
 
 ## Bot do WhatsApp
 
-Quem esta na lista de numeros autorizados manda mensagens para o numero do bot
-(ex.: `Kevin 2 coxinhas e 1 guarana`, `2 coxinhas pro Kevin`). O bot mostra o
-resumo, pergunta quando algo for ambiguo (qual Coca? qual Karina?) e so grava
-depois do `sim`. Tambem responde `quanto o Kevin deve` e `quem deve`. A pagina
-**WhatsApp** do app mostra o estado da conexao e as ultimas mensagens.
+Quem esta na lista de numeros autorizados manda qualquer mensagem (ex.: `oi`)
+para o numero do bot e recebe um menu com opcoes numeradas:
+
+1. Registrar compra: o bot pergunta quem esta comprando, qual item (e qual
+   Coca, se houver mais de uma), quantas unidades, se quer mais algum item, e
+   mostra o resumo para confirmar.
+2. Consultar a conta de alguem.
+3. Ver quem esta devendo.
+4. Registrar pagamento: pergunta quem pagou e como (Pix, dinheiro...), e da
+   baixa no valor total.
+
+Em qualquer ponto, `menu` volta ao inicio e `cancelar` desiste. `lista` mostra
+o cardapio. O atalho por frase (`Kevin 2 coxinhas`) tambem funciona. Nada e
+gravado antes da confirmacao. A pagina **WhatsApp** do app mostra o estado da
+conexao e as ultimas mensagens.
 
 Variaveis de ambiente (no Render, aba Environment; nunca no codigo):
 

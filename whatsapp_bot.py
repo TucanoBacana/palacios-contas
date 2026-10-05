@@ -30,8 +30,6 @@ VERSAO_API = os.environ.get("WHATSAPP_API_VERSION", "v21.0")
 CONFIRMAR = {"sim", "s", "ok", "confirmo", "confirma", "confirmar", "pode", "isso", "certo",
              "correto", "beleza", "blz", "registra", "registrar", "manda", "yes"}
 CANCELAR = {"nao", "n", "cancela", "cancelar", "cancel", "errado", "esquece", "deixa"}
-AJUDA_PALAVRAS = {"ajuda", "menu", "oi", "ola", "help", "comandos", "bom dia", "boa tarde",
-                  "boa noite", "como funciona"}
 PALAVRAS_CONSULTA = {"quanto", "saldo", "deve", "devendo", "divida", "devedor", "devedores",
                      "conta", "total", "resumo", "extrato", "pendente", "pendentes", "quem"}
 RUIDO_CONSULTA = PALAVRAS_CONSULTA | {"de", "do", "da", "o", "a", "esta", "e", "me", "mostra",
@@ -42,16 +40,21 @@ NUMEROS = {"um": "1", "uma": "1", "dois": "2", "duas": "2", "tres": "3", "quatro
 STOP = {"de", "da", "do", "das", "dos", "e", "com", "a", "o", "as", "os"}
 UNIDADE = re.compile(r"^\d+(ml|mm|l|g|kg)$")
 
-AJUDA = (
-    "Eu registro o que o pessoal pegou.\n\n"
-    "Para registrar, mande assim:\n"
-    "*Kevin 2 coxinhas e 1 guaraná*\n"
-    "ou *2 coxinhas pro Kevin*\n\n"
-    "Eu mostro o resumo e você responde *sim* para gravar ou *não* para cancelar.\n\n"
-    "Para consultar:\n"
-    "*quanto o Kevin deve*\n"
-    "*quem deve* (maiores devedores)"
+MENU = (
+    "*PALACIO'S* - o que você quer fazer?\n\n"
+    "1) Registrar compra\n"
+    "2) Consultar a conta de alguém\n"
+    "3) Ver quem está devendo\n"
+    "4) Registrar pagamento\n\n"
+    "Responda com o *número*.\n"
+    "Digite *lista* para ver o cardápio.\n"
+    "Atalho: você também pode mandar direto, ex.: *Kevin 2 coxinhas*"
 )
+RODAPE = "\n\nDigite *menu* para voltar ao início."
+FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Cartão", "Transferência"]
+MENU_PALAVRAS = {"menu", "inicio", "voltar", "0", "oi", "ola", "ajuda", "help", "comandos",
+                 "bom dia", "boa tarde", "boa noite", "como funciona"}
+LISTA_PALAVRAS = {"lista", "cardapio", "produtos", "itens"}
 
 
 # ---------------------------------------------------------------- texto
@@ -243,7 +246,7 @@ def _opcoes_texto(titulo, opcoes, total, formato):
         linhas.append(f"{i}) {formato(o)}")
     if total > len(opcoes):
         linhas.append(f"(Há mais {total - len(opcoes)} parecidos. Se não for nenhum, cancele e mande o nome completo.)")
-    linhas.append("Responda com o *número* ou *cancelar*.")
+    linhas.append("Responda com o *número*. Digite *menu* para cancelar.")
     return "\n".join(linhas)
 
 
@@ -279,16 +282,16 @@ def texto_confirmacao(estado):
         total += subtotal
         linhas.append(f"• {it['qtd']}× {p['nome']}: {brl(subtotal)}")
     linhas.append(f"Total: *{brl(total)}* (fica em aberto)")
-    linhas.append("Responda *sim* para registrar ou *não* para cancelar.")
+    linhas.append("1) Sim, registrar\n2) Não, cancelar")
     return "\n".join(linhas)
 
 
 def continuar(estado, texto, pessoas):
     """Aplica a resposta do usuario ao estado. Retorna 'cancelar'|'confirmado'|'ok'|'novo'."""
     n = normalizar(texto)
-    if n in CANCELAR:
-        return "cancelar"
     etapa = estado.get("etapa")
+    if n in CANCELAR or (etapa == "confirmar" and n == "2"):
+        return "cancelar"
     if etapa in ("escolher_pessoa", "escolher_produto", "escolher_consulta"):
         if not re.fullmatch(r"\d{1,2}", n):
             return "novo"
@@ -324,7 +327,7 @@ def continuar(estado, texto, pessoas):
         else:
             estado["pessoa"] = {"novo": n.upper()}
         return "ok"
-    if etapa == "confirmar" and n in CONFIRMAR:
+    if etapa == "confirmar" and (n in CONFIRMAR or n == "1"):
         return "confirmado"
     return "novo"
 
@@ -431,6 +434,237 @@ def _registrar(conn, estado, operador):
     return "\n".join(saida + avisos)
 
 
+def _numero(n, maximo):
+    if re.fullmatch(r"\d{1,2}", n) and 1 <= int(n) <= maximo:
+        return int(n) - 1
+    return None
+
+
+def _texto_lista(cur):
+    cur.execute("SELECT nome, preco, categoria FROM produtos WHERE ativo ORDER BY categoria, nome")
+    saida, atual = [], None
+    for p in cur.fetchall():
+        if p["categoria"] != atual:
+            atual = p["categoria"]
+            saida.append(f"\n*{'Restaurante' if atual == 'restaurante' else 'Mercadinho'}*")
+        saida.append(f"{p['nome']}: {brl(p['preco'])}")
+    return "\n".join(saida).strip() or "O cardápio está vazio."
+
+
+def _nome_pessoa(estado):
+    p = estado["pessoa"]
+    return p.get("nome") or p["novo"]
+
+
+def _tentar_pessoa(estado, n, pessoas):
+    """Devolve a proxima pergunta, ou None quando estado['pessoa'] ficou definido."""
+    palavras = n.split()
+    if not palavras or any(w.isdigit() for w in palavras) or len(palavras) > 5:
+        estado["etapa"] = "quem"
+        return "Digite só o nome da pessoa, por exemplo: *Kevin*."
+    idx = [(p, tokens_pessoa(p["nome"])) for p in pessoas]
+    tipo, val, total = resolver_pessoa(palavras, idx)
+    if tipo == "unico":
+        estado["pessoa"] = {"id": val["id"], "nome": val["nome"]}
+        return None
+    if tipo == "ambiguo":
+        estado.update(etapa="quem_escolher", digitado=n, total_opcoes=total,
+                      candidatos=[{"id": p["id"], "nome": p["nome"]} for p in val])
+        return _opcoes_texto(f"Qual pessoa você quis dizer com *{n}*?", estado["candidatos"],
+                             total, lambda p: p["nome"])
+    if estado["fluxo"] == "compra":
+        estado.update(etapa="quem_novo", novo_nome=n.upper())
+        return (f"Não achei *{n}* no cadastro.\n"
+                f"1) Criar *{n.upper()}* como pessoa nova\n2) Digitar o nome de novo")
+    estado["etapa"] = "quem"
+    return f"Não achei ninguém chamado *{n}*. Digite o nome de novo."
+
+
+PERGUNTA_ITEM = "Qual item? Digite o nome (ex.: *coxinha*) ou *lista* para ver o cardápio."
+
+
+def _texto_mais(estado):
+    total = sum(i["qtd"] * i["produto"]["preco"] for i in estado["itens"])
+    linhas = [f"Anotado. Até agora para *{_nome_pessoa(estado)}*:"]
+    linhas += [f"• {i['qtd']}× {i['produto']['nome']}" for i in estado["itens"]]
+    linhas.append(f"Subtotal: {brl(total)}\n")
+    linhas.append("1) Adicionar outro item\n2) Finalizar")
+    return "\n".join(linhas)
+
+
+def _apos_pessoa(cur, chave, estado):
+    fluxo = estado["fluxo"]
+    if fluxo == "compra":
+        estado["etapa"] = "item"
+        _salvar_estado(cur, chave, estado)
+        return PERGUNTA_ITEM
+    if fluxo == "consulta":
+        _apagar_estado(cur, chave)
+        return _texto_conta(cur, estado["pessoa"]) + RODAPE
+    cur.execute("SELECT COALESCE(SUM(valor_total), 0) AS t, COUNT(*) AS c FROM pedidos "
+                "WHERE pessoa_id = %s AND NOT pago", (estado["pessoa"]["id"],))
+    r = cur.fetchone()
+    if r["c"] == 0:
+        _apagar_estado(cur, chave)
+        return f"*{_nome_pessoa(estado)}* não deve nada." + RODAPE
+    estado.update(etapa="forma", pendente=float(r["t"]), qtd_pendente=r["c"])
+    _salvar_estado(cur, chave, estado)
+    opcoes = "\n".join(f"{i}) {f}" for i, f in enumerate(FORMAS_PAGAMENTO, 1))
+    return (f"*{_nome_pessoa(estado)}* deve *{brl(r['t'])}* em {r['c']} "
+            f"{'item' if r['c'] == 1 else 'itens'}.\nComo foi o pagamento?\n{opcoes}\n"
+            "(A baixa é do valor total. Para pagar só uma parte, use o app.)")
+
+
+def _dar_baixa(cur, estado, operador):
+    cur.execute(
+        """UPDATE pedidos SET pago = TRUE, data_pagamento = %s, forma_pagamento = %s,
+                  observacoes = COALESCE(observacoes || ' ', '') || %s
+           WHERE pessoa_id = %s AND NOT pago RETURNING valor_total""",
+        (date.today().isoformat(), estado["forma"], f"[baixa via WhatsApp ({operador})]",
+         estado["pessoa"]["id"]),
+    )
+    linhas = cur.fetchall()
+    total = sum(l["valor_total"] for l in linhas)
+    return (f"*Baixa registrada*: {_nome_pessoa(estado)} pagou *{brl(total)}* "
+            f"({estado['forma']}), {len(linhas)} {'item' if len(linhas) == 1 else 'itens'}.")
+
+
+def _adicionar_item(estado, produto, qtd):
+    estado["itens"].append({"qtd": qtd, "produto": produto})
+    estado.pop("atual", None)
+    estado["etapa"] = "mais"
+    return _texto_mais(estado)
+
+
+def _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos):
+    etapa = estado["etapa"]
+    if n in ("cancelar", "cancela", "cancel") or (n in CANCELAR and etapa != "mais"):
+        _apagar_estado(cur, chave)
+        return "Cancelado. Nada foi registrado." + RODAPE
+
+    def salvar(texto):
+        _salvar_estado(cur, chave, estado)
+        return texto
+
+    # ----- quem
+    if etapa == "quem":
+        pergunta = _tentar_pessoa(estado, n, pessoas)
+        return salvar(pergunta) if pergunta else _apos_pessoa(cur, chave, estado)
+    if etapa == "quem_escolher":
+        i = _numero(n, len(estado["candidatos"]))
+        if i is None:
+            return _opcoes_texto("Responda com o número da pessoa:", estado["candidatos"],
+                                 estado.get("total_opcoes", 0), lambda p: p["nome"])
+        escolhida = estado["candidatos"][i]
+        estado["pessoa"] = {"id": escolhida["id"], "nome": escolhida["nome"]}
+        for k in ("candidatos", "digitado", "total_opcoes"):
+            estado.pop(k, None)
+        return _apos_pessoa(cur, chave, estado)
+    if etapa == "quem_novo":
+        if n == "1":
+            estado["pessoa"] = {"novo": estado.pop("novo_nome")}
+            return _apos_pessoa(cur, chave, estado)
+        if n == "2":
+            estado["etapa"] = "quem"
+            return salvar("Digite o nome de novo.")
+        return "Responda *1* para criar a pessoa nova ou *2* para digitar o nome de novo."
+
+    # ----- itens
+    if etapa == "item":
+        if n in LISTA_PALAVRAS:
+            return _texto_lista(cur) + "\n\n" + PERGUNTA_ITEM
+        qtd, resto = None, []
+        for w in n.split():
+            w = NUMEROS.get(w, w)
+            if w.isdigit():
+                if qtd is None and len(w) <= 2 and int(w) >= 1:
+                    qtd = int(w)
+            else:
+                resto.append(w)
+        if not resto:
+            return "Digite o nome do item, por exemplo *coxinha*. Para ver o cardápio, digite *lista*."
+        tipo, val, total = resolver_produto(resto, idx_produtos)
+        if tipo == "nenhum":
+            return (f"Não achei *{' '.join(resto)}* no cardápio. Digite de novo ou *lista* para "
+                    "ver os produtos.")
+        if tipo == "ambiguo":
+            estado["atual"] = {"candidatos": [_compacto_produto(p) for p in val], "qtd": qtd,
+                               "digitado": " ".join(resto), "total_opcoes": total}
+            estado["etapa"] = "item_escolher"
+            return salvar(_opcoes_texto(f"Qual você quis dizer com *{' '.join(resto)}*?",
+                                        estado["atual"]["candidatos"], total,
+                                        lambda p: f"{p['nome']} ({brl(p['preco'])})"))
+        produto = _compacto_produto(val)
+        if qtd:
+            return salvar(_adicionar_item(estado, produto, qtd))
+        estado["atual"] = {"produto": produto}
+        estado["etapa"] = "qtd"
+        return salvar(f"Quantas unidades de *{produto['nome']}*? Digite só o número.")
+    if etapa == "item_escolher":
+        atual = estado["atual"]
+        i = _numero(n, len(atual["candidatos"]))
+        if i is None:
+            return _opcoes_texto("Responda com o número do produto:", atual["candidatos"],
+                                 atual.get("total_opcoes", 0),
+                                 lambda p: f"{p['nome']} ({brl(p['preco'])})")
+        produto = atual["candidatos"][i]
+        if atual.get("qtd"):
+            return salvar(_adicionar_item(estado, produto, atual["qtd"]))
+        estado["atual"] = {"produto": produto}
+        estado["etapa"] = "qtd"
+        return salvar(f"Quantas unidades de *{produto['nome']}*? Digite só o número.")
+    if etapa == "qtd":
+        if re.fullmatch(r"\d{1,2}", n) and int(n) >= 1:
+            return salvar(_adicionar_item(estado, estado["atual"]["produto"], int(n)))
+        return "Digite só o número de unidades, por exemplo *2*."
+    if etapa == "mais":
+        if n in ("1", "sim", "s", "mais", "outro"):
+            estado["etapa"] = "item"
+            return salvar(PERGUNTA_ITEM)
+        if n in ("2", "nao", "n", "fim", "finalizar", "pronto", "so isso"):
+            estado["etapa"] = "confirmar"
+            return salvar(texto_confirmacao(estado))
+        return "Responda *1* para adicionar outro item ou *2* para finalizar."
+    if etapa == "confirmar":
+        if n in CONFIRMAR or n == "1":
+            _apagar_estado(cur, chave)
+            return _registrar(conn, estado, operador) + RODAPE
+        if n == "2":
+            _apagar_estado(cur, chave)
+            return "Cancelado. Nada foi registrado." + RODAPE
+        return "Responda *1* para registrar ou *2* para cancelar."
+
+    # ----- pagamento
+    if etapa == "forma":
+        i = _numero(n, len(FORMAS_PAGAMENTO))
+        if i is None:
+            return "Responda com o número da forma de pagamento (1 a %d)." % len(FORMAS_PAGAMENTO)
+        estado["forma"] = FORMAS_PAGAMENTO[i]
+        estado["etapa"] = "pag_confirmar"
+        return salvar(f"Dar baixa em *{brl(estado['pendente'])}* de *{_nome_pessoa(estado)}* "
+                      f"({estado['forma']})?\n1) Sim, dar baixa\n2) Não, cancelar")
+    if etapa == "pag_confirmar":
+        if n in CONFIRMAR or n == "1":
+            _apagar_estado(cur, chave)
+            return _dar_baixa(cur, estado, operador) + RODAPE
+        if n == "2":
+            _apagar_estado(cur, chave)
+            return "Cancelado. Nada foi alterado." + RODAPE
+        return "Responda *1* para dar baixa ou *2* para cancelar."
+
+    _apagar_estado(cur, chave)
+    return MENU
+
+
+def _iniciar_fluxo(cur, chave, opcao):
+    fluxos = {"1": ("compra", "*Registrar compra*\nQuem está comprando? Digite o nome."),
+              "2": ("consulta", "*Consultar conta*\nDe quem você quer ver a conta? Digite o nome."),
+              "4": ("pagamento", "*Registrar pagamento*\nQuem pagou? Digite o nome.")}
+    fluxo, pergunta = fluxos[opcao]
+    _salvar_estado(cur, chave, {"fluxo": fluxo, "etapa": "quem", "itens": []})
+    return pergunta + "\n(Digite *menu* para cancelar.)"
+
+
 def tratar_mensagem(conn, chave, operador, texto):
     """Processa uma mensagem de um numero autorizado e devolve a resposta."""
     cur = conn.cursor()
@@ -438,22 +672,30 @@ def tratar_mensagem(conn, chave, operador, texto):
     pessoas = [dict(r) for r in cur.fetchall()]
     cur.execute("SELECT id, nome, preco FROM produtos WHERE ativo")
     produtos = [dict(r) for r in cur.fetchall()]
+    idx_produtos = [(p, tokens_produto(p["nome"])) for p in produtos]
 
     estado = _carregar_estado(cur, chave)
     n = normalizar(texto)
 
-    if estado:
+    if n in MENU_PALAVRAS or n.startswith("ajuda"):
+        if estado:
+            _apagar_estado(cur, chave)
+        return MENU
+    if estado and estado.get("fluxo"):
+        return _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos)
+
+    if estado:  # conversa iniciada pelo atalho de frase
         resultado = continuar(estado, texto, pessoas)
         if resultado == "cancelar":
             _apagar_estado(cur, chave)
-            return "Cancelado. Nada foi registrado."
+            return "Cancelado. Nada foi registrado." + RODAPE
         if resultado == "confirmado":
             _apagar_estado(cur, chave)
-            return _registrar(conn, estado, operador)
+            return _registrar(conn, estado, operador) + RODAPE
         if resultado == "ok":
-            if estado.get("etapa") == "escolher_consulta" or estado.get("escolhido"):
+            if estado.get("escolhido"):
                 _apagar_estado(cur, chave)
-                return _texto_conta(cur, estado["escolhido"])
+                return _texto_conta(cur, estado["escolhido"]) + RODAPE
             pergunta = proxima_pergunta(estado)
             if pergunta is None:
                 estado["etapa"] = "confirmar"
@@ -462,32 +704,36 @@ def tratar_mensagem(conn, chave, operador, texto):
             return pergunta
         _apagar_estado(cur, chave)  # nao era resposta: trata como mensagem nova
 
+    if n in ("1", "2", "4"):
+        return _iniciar_fluxo(cur, chave, n)
+    if n == "3":
+        return _texto_ranking(cur) + RODAPE
+    if n in LISTA_PALAVRAS:
+        return _texto_lista(cur) + RODAPE
     if n in CANCELAR:
-        return "Não há nada para cancelar."
+        return "Não há nada para cancelar." + RODAPE
     if n in CONFIRMAR:
-        return "Não há nada esperando confirmação. Mande, por exemplo: *Kevin 2 coxinhas*"
-    if n in AJUDA_PALAVRAS or n.startswith("ajuda"):
-        return AJUDA
+        return "Não há nada esperando confirmação." + RODAPE
 
+    # atalho: frase completa, ex. "Kevin 2 coxinhas" ou "quanto o Kevin deve"
     palavras = n.split()
     if any(p in PALAVRAS_CONSULTA for p in palavras) and not any(p.isdigit() for p in palavras):
         restantes = [p for p in palavras if p not in RUIDO_CONSULTA]
         if not restantes or "quem" in palavras:
-            return _texto_ranking(cur)
+            return _texto_ranking(cur) + RODAPE
         return _consultar_pessoa(cur, chave, restantes, pessoas)
 
     novo, nao_entendidos = montar_estado(texto, pessoas, produtos)
     if nao_entendidos:
         lista = ", ".join(f"*{x}*" for x in nao_entendidos)
         return (f"Não achei no cardápio: {lista}. Nada foi registrado.\n"
-                "Confira o nome do produto e mande de novo.")
+                "Digite *lista* para ver os produtos ou *menu* para o passo a passo.")
     if not novo["itens"]:
-        if palavras:
-            idx = [(p, tokens_pessoa(p["nome"])) for p in pessoas]
-            tipo, val, _ = resolver_pessoa(palavras, idx)
-            if tipo == "unico":
-                return _texto_conta(cur, val)
-        return "Não entendi essa mensagem.\n\n" + AJUDA
+        idx = [(p, tokens_pessoa(p["nome"])) for p in pessoas]
+        tipo, val, _ = resolver_pessoa(palavras, idx) if palavras else ("nenhum", None, 0)
+        if tipo == "unico":
+            return _texto_conta(cur, val) + RODAPE
+        return "Não entendi essa mensagem.\n\n" + MENU
 
     pergunta = proxima_pergunta(novo)
     if pergunta is None:
@@ -501,14 +747,14 @@ def _consultar_pessoa(cur, chave, palavras, pessoas):
     idx = [(p, tokens_pessoa(p["nome"])) for p in pessoas]
     tipo, val, total = resolver_pessoa(palavras, idx)
     if tipo == "unico":
-        return _texto_conta(cur, val)
+        return _texto_conta(cur, val) + RODAPE
     if tipo == "ambiguo":
         estado = {"etapa": "escolher_consulta",
                   "candidatos": [{"id": p["id"], "nome": p["nome"]} for p in val]}
         _salvar_estado(cur, chave, estado)
         return _opcoes_texto(f"De qual pessoa você quer saber, *{' '.join(palavras)}*?",
                              estado["candidatos"], total, lambda p: p["nome"])
-    return f"Não achei ninguém chamado *{' '.join(palavras)}*."
+    return f"Não achei ninguém chamado *{' '.join(palavras)}*." + RODAPE
 
 
 # ---------------------------------------------------------- WhatsApp (Meta)
