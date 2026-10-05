@@ -7,7 +7,7 @@
   ('estoque', 'Estoque', 'box', ['estoque']),
   ('financeiro', 'Financeiro', 'chart', ['financeiro']),
   ('cardapio', 'Cardápio', 'list', ['cardapio']),
-  ('whatsapp', 'WhatsApp', 'chat', ['whatsapp']),
+  ('bot', 'Bot', 'chat', ['bot']),
 ] %}
 <!doctype html>
 <html lang="pt-BR">
@@ -97,7 +97,7 @@
     {% for endpoint, nome, ico, ativos in itens[:4] %}
     <a href="{{ url_for(endpoint) }}" class="{{ 'ativo' if request.endpoint in ativos }}"{% if request.endpoint in ativos %} aria-current="page"{% endif %}>{{ icon(ico) }}<span>{{ nome if nome != 'Mercadinho' else 'Mercado' }}</span></a>
     {% endfor %}
-    <label for="mais-toggle" role="button" tabindex="0" class="{{ 'ativo' if request.endpoint in ['estoque', 'financeiro', 'cardapio', 'whatsapp'] }}">{{ icon('dots') }}<span>Mais</span></label>
+    <label for="mais-toggle" role="button" tabindex="0" class="{{ 'ativo' if request.endpoint in ['estoque', 'financeiro', 'cardapio', 'bot'] }}">{{ icon('dots') }}<span>Mais</span></label>
   </nav>
 
   <label class="scrim" for="mais-toggle"></label>

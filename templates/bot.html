@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon %}
+{% block title %}Bot{% endblock %}
+{% block content %}
+  <header class="page-head">
+    <h1>Bot</h1>
+    <p class="lede">A equipe conversa com o bot, que pergunta passo a passo (quem, qual item, quantos) e só grava depois da confirmação.</p>
+  </header>
+
+  <h2 style="margin-top: 8px">Telegram</h2>
+  <ul class="linhas">
+    {% for nome, ok in config_telegram %}
+    <li class="linha linha-simples">
+      <span class="linha-titulo">{{ nome }}</span>
+      <span class="linha-fim">
+        {% if ok %}<span class="pill pill-ok">{{ icon('check') }}Configurado</span>
+        {% else %}<span class="pill pill-aviso">Falta configurar</span>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="sub-secao" style="margin-top: 10px">Os valores ficam só nas configurações do Render e nunca aparecem aqui. {{ usuarios_telegram }} {{ 'usuário autorizado' if usuarios_telegram == 1 else 'usuários autorizados' }}.</p>
+  <div style="display: flex; flex-wrap: wrap; gap: 10px">
+    <form method="post" action="{{ url_for('telegram_ativar') }}">
+      <button type="submit" class="btn btn-primario">Conectar Telegram ao app</button>
+    </form>
+    <form method="post" action="{{ url_for('telegram_verificar') }}">
+      <button type="submit" class="btn">Verificar conexão</button>
+    </form>
+  </div>
+
+  <h2>Últimas mensagens</h2>
+  {% if mensagens %}
+  <ul class="linhas">
+    {% for m in mensagens %}
+    <li class="linha linha-simples">
+      <span class="linha-titulo">{{ m.nome or m.telefone }}</span>
+      <span class="linha-sub" style="white-space: pre-wrap">{{ m.texto }}</span>
+      <span class="linha-fim">
+        <span class="pill {{ 'cat-mercadinho' if m.canal == 'telegram' else 'pill-ok' }}">{{ 'Telegram' if m.canal == 'telegram' else 'WhatsApp' }}</span>
+        <span class="pill pill-mudo">{{ m.criado_em.strftime('%d/%m %H:%M') }}</span>
+      </span>
+      {% if m.resposta %}
+      <span class="linha-sub" style="grid-column: 1 / -1; white-space: pre-wrap; padding: 8px 12px; border-left: 3px solid var(--brand); background: var(--surface); border-radius: 0 12px 12px 0">{{ m.resposta }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="vazio">Nenhuma mensagem recebida ainda. Quando alguém escrever para o bot, aparece aqui.</p>
+  {% endif %}
+
+  <details class="painel" style="margin-top: 28px">
+    <summary>WhatsApp (em espera) {{ icon('chevron') }}</summary>
+    <div class="painel-corpo">
+      <p class="sub-secao" style="margin: 0">O código do WhatsApp continua pronto, mas a Meta precisa liberar a conta antes de ele funcionar.</p>
+      <ul class="linhas">
+        {% for nome, ok in config_whatsapp %}
+        <li class="linha linha-simples">
+          <span class="linha-titulo">{{ nome }}</span>
+          <span class="linha-fim">
+            {% if ok %}<span class="pill pill-ok">{{ icon('check') }}Configurado</span>
+            {% else %}<span class="pill pill-mudo">Não configurado</span>{% endif %}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="campo">
+        <label for="webhook-url">Endereço do webhook do WhatsApp</label>
+        <input id="webhook-url" type="text" readonly value="{{ webhook_whatsapp }}" onfocus="this.select()">
+      </div>
+    </div>
+  </details>
+{% endblock %}

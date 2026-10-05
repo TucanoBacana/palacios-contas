@@ -8,6 +8,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from db import CATEGORIAS, get_connection, get_or_create_pessoa, init_db
 from export_xlsx import exportar
+import telegram_bot
 import whatsapp_bot
 
 FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Cartão", "Transferência", "Outro"]
@@ -522,30 +523,82 @@ def whatsapp_webhook():
     return Response("ok", status=200)
 
 
+@app.route("/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+    if not telegram_bot.assinatura_valida(request.headers.get("X-Telegram-Bot-Api-Secret-Token")):
+        return Response("assinatura invalida", status=403)
+    telegram_bot.processar_update(request.get_json(silent=True) or {}, get_connection)
+    return Response("ok", status=200)
+
+
 @app.route("/whatsapp")
 def whatsapp():
-    config = [
-        ("Token de acesso (WHATSAPP_TOKEN)", bool(os.environ.get("WHATSAPP_TOKEN"))),
-        ("ID do número (WHATSAPP_PHONE_ID)", bool(os.environ.get("WHATSAPP_PHONE_ID"))),
-        ("Código de verificação (WHATSAPP_VERIFY_TOKEN)", bool(os.environ.get("WHATSAPP_VERIFY_TOKEN"))),
-        ("Chave secreta do app (WHATSAPP_APP_SECRET)", bool(os.environ.get("WHATSAPP_APP_SECRET"))),
+    return redirect(url_for("bot"))
+
+
+@app.route("/bot")
+def bot():
+    def tem(nome):
+        return bool(os.environ.get(nome))
+
+    config_telegram = [
+        ("Token do bot (TELEGRAM_TOKEN)", tem("TELEGRAM_TOKEN")),
+        ("Frase secreta (TELEGRAM_WEBHOOK_SECRET)", tem("TELEGRAM_WEBHOOK_SECRET")),
+        ("Usuários autorizados (TELEGRAM_USUARIOS)", bool(telegram_bot.usuarios_permitidos())),
+    ]
+    config_whatsapp = [
+        ("Token de acesso (WHATSAPP_TOKEN)", tem("WHATSAPP_TOKEN")),
+        ("ID do número (WHATSAPP_PHONE_ID)", tem("WHATSAPP_PHONE_ID")),
+        ("Código de verificação (WHATSAPP_VERIFY_TOKEN)", tem("WHATSAPP_VERIFY_TOKEN")),
+        ("Chave secreta do app (WHATSAPP_APP_SECRET)", tem("WHATSAPP_APP_SECRET")),
         ("Números autorizados (WHATSAPP_NUMEROS)", bool(whatsapp_bot.numeros_permitidos())),
     ]
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT nome, telefone, texto, resposta, "
+            "SELECT canal, nome, telefone, texto, resposta, "
             "(criado_em AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo' AS criado_em "
-            "FROM whatsapp_mensagens "
-            "ORDER BY criado_em DESC LIMIT 25"
+            "FROM whatsapp_mensagens ORDER BY criado_em DESC LIMIT 25"
         )
         mensagens = cur.fetchall()
     conn.close()
     return render_template(
-        "whatsapp.html", config=config, mensagens=mensagens,
-        webhook_url=url_for("whatsapp_webhook", _external=True),
-        numeros=len(whatsapp_bot.numeros_permitidos()),
+        "bot.html", config_telegram=config_telegram, config_whatsapp=config_whatsapp,
+        mensagens=mensagens, usuarios_telegram=len(telegram_bot.usuarios_permitidos()),
+        webhook_whatsapp=url_for("whatsapp_webhook", _external=True),
     )
+
+
+@app.route("/bot/telegram/ativar", methods=["POST"])
+def telegram_ativar():
+    if not os.environ.get("TELEGRAM_TOKEN") or not os.environ.get("TELEGRAM_WEBHOOK_SECRET"):
+        flash("Falta configurar TELEGRAM_TOKEN e TELEGRAM_WEBHOOK_SECRET no Render.", "erro")
+    else:
+        resp = telegram_bot.ativar_webhook(url_for("telegram_webhook", _external=True))
+        if resp and resp.get("ok"):
+            flash("Telegram conectado: as mensagens agora chegam ao app.", "ok")
+        else:
+            flash("O Telegram recusou: " + str((resp or {}).get("description", "sem resposta")), "erro")
+    return redirect(url_for("bot"))
+
+
+@app.route("/bot/telegram/verificar", methods=["POST"])
+def telegram_verificar():
+    eu = telegram_bot.chamar("getMe")
+    if eu is None:
+        flash("Falta configurar TELEGRAM_TOKEN no Render.", "erro")
+    elif not eu.get("ok"):
+        flash("Token inválido: " + str(eu.get("description")), "erro")
+    else:
+        info = (telegram_bot.chamar("getWebhookInfo") or {}).get("result", {})
+        partes = [f"Bot @{eu['result'].get('username')} encontrado."]
+        partes.append("Webhook ativo." if info.get("url") else "Webhook ainda não ativado.")
+        if info.get("pending_update_count"):
+            partes.append(f"{info['pending_update_count']} mensagens esperando.")
+        if info.get("last_error_message"):
+            partes.append("Último erro: " + info["last_error_message"])
+        flash(" ".join(partes), "erro" if info.get("last_error_message") else "ok")
+    return redirect(url_for("bot"))
 
 
 @app.errorhandler(404)

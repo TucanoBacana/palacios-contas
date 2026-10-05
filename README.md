@@ -151,10 +151,9 @@ para voltar ao Painel.
 
 ---
 
-## Bot do WhatsApp
+## Bot (Telegram e WhatsApp)
 
-Quem esta na lista de numeros autorizados manda qualquer mensagem (ex.: `oi`)
-para o numero do bot e recebe um menu com opcoes numeradas:
+A equipe manda mensagem para o bot e recebe um menu com opcoes numeradas:
 
 1. Registrar compra: o bot pergunta quem esta comprando, qual item (e qual
    Coca, se houver mais de uma), quantas unidades, se quer mais algum item, e
@@ -166,21 +165,27 @@ para o numero do bot e recebe um menu com opcoes numeradas:
 
 Em qualquer ponto, `menu` volta ao inicio e `cancelar` desiste. `lista` mostra
 o cardapio. O atalho por frase (`Kevin 2 coxinhas`) tambem funciona. Nada e
-gravado antes da confirmacao. A pagina **WhatsApp** do app mostra o estado da
+gravado antes da confirmacao. A pagina **Bot** do app mostra o estado da
 conexao e as ultimas mensagens.
 
-Variaveis de ambiente (no Render, aba Environment; nunca no codigo):
+### Telegram (gratuito, sem verificacao de empresa)
 
-| Variavel | O que e |
-|---|---|
-| `WHATSAPP_TOKEN` | Token de acesso da Meta (WhatsApp > Configuracao da API) |
-| `WHATSAPP_PHONE_ID` | "ID do numero de telefone" na mesma tela |
-| `WHATSAPP_VERIFY_TOKEN` | Uma frase qualquer que voce escolhe; a mesma vai na Meta |
-| `WHATSAPP_APP_SECRET` | Chave secreta do app (Configuracoes do app > Basico) |
-| `WHATSAPP_NUMEROS` | Quem pode usar: `5511999990000:Yan,5521988880000:Maria` |
+1. No Telegram, converse com **@BotFather**, mande `/newbot`, escolha um nome e
+   um usuario terminado em `bot`. Ele entrega o **token** (e uma senha: guarde).
+2. No Render (Environment) crie:
+   - `TELEGRAM_TOKEN`: o token do BotFather
+   - `TELEGRAM_WEBHOOK_SECRET`: uma frase que voce inventa (letras, numeros, `_`, `-`)
+   - `TELEGRAM_USUARIOS`: quem pode usar, `123456789:Yan,987654321:Maria`
+     (ID numerico do Telegram e nome). Para descobrir o ID, mande qualquer
+     mensagem ao bot: ele responde com o ID da pessoa.
+3. No app, pagina **Bot**, clique em **Conectar Telegram ao app**.
 
-Na Meta (WhatsApp > Configuracao > Webhook): URL de retorno =
-`https://SEU-APP.onrender.com/whatsapp/webhook`, token de verificacao = o
-`WHATSAPP_VERIFY_TOKEN`, e assinar o campo `messages`.
+Hoje o bot responde so em conversa individual (grupos ficam para depois).
+
+### WhatsApp (em espera: depende da Meta liberar a conta)
+
+Variaveis: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_VERIFY_TOKEN`,
+`WHATSAPP_APP_SECRET`, `WHATSAPP_NUMEROS` (`5511999990000:Yan`). Webhook:
+`https://SEU-APP.onrender.com/whatsapp/webhook`, assinando o campo `messages`.
 
 Testes do leitor de mensagens (sem banco): `python tests_bot.py`.

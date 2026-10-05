@@ -52,7 +52,7 @@ MENU = (
 )
 RODAPE = "\n\nDigite *menu* para voltar ao início."
 FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Cartão", "Transferência"]
-MENU_PALAVRAS = {"menu", "inicio", "voltar", "0", "oi", "ola", "ajuda", "help", "comandos",
+MENU_PALAVRAS = {"menu", "start", "inicio", "voltar", "0", "oi", "ola", "ajuda", "help", "comandos",
                  "bom dia", "boa tarde", "boa noite", "como funciona"}
 LISTA_PALAVRAS = {"lista", "cardapio", "produtos", "itens"}
 
@@ -395,13 +395,13 @@ def _texto_ranking(cur):
     return "\n".join(saida)
 
 
-def _registrar(conn, estado, operador):
+def _registrar(conn, estado, operador, canal="WhatsApp"):
     cur = conn.cursor()
     pessoa = estado["pessoa"]
     pessoa_id = pessoa["id"] if "id" in pessoa else get_or_create_pessoa(conn, pessoa["novo"])
     nome = pessoa.get("nome") or pessoa["novo"]
     hoje = date.today().isoformat()
-    obs = f"via WhatsApp ({operador})"
+    obs = f"via {canal} ({operador})"
     total, avisos, linhas = 0.0, [], []
     for it in estado["itens"]:
         cur.execute("SELECT nome, preco, custo FROM produtos WHERE id = %s", (it["produto"]["id"],))
@@ -515,12 +515,12 @@ def _apos_pessoa(cur, chave, estado):
             "(A baixa é do valor total. Para pagar só uma parte, use o app.)")
 
 
-def _dar_baixa(cur, estado, operador):
+def _dar_baixa(cur, estado, operador, canal="WhatsApp"):
     cur.execute(
         """UPDATE pedidos SET pago = TRUE, data_pagamento = %s, forma_pagamento = %s,
                   observacoes = COALESCE(observacoes || ' ', '') || %s
            WHERE pessoa_id = %s AND NOT pago RETURNING valor_total""",
-        (date.today().isoformat(), estado["forma"], f"[baixa via WhatsApp ({operador})]",
+        (date.today().isoformat(), estado["forma"], f"[baixa via {canal} ({operador})]",
          estado["pessoa"]["id"]),
     )
     linhas = cur.fetchall()
@@ -536,7 +536,7 @@ def _adicionar_item(estado, produto, qtd):
     return _texto_mais(estado)
 
 
-def _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos):
+def _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos, canal="WhatsApp"):
     etapa = estado["etapa"]
     if n in ("cancelar", "cancela", "cancel") or (n in CANCELAR and etapa != "mais"):
         _apagar_estado(cur, chave)
@@ -628,7 +628,7 @@ def _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos):
     if etapa == "confirmar":
         if n in CONFIRMAR or n == "1":
             _apagar_estado(cur, chave)
-            return _registrar(conn, estado, operador) + RODAPE
+            return _registrar(conn, estado, operador, canal) + RODAPE
         if n == "2":
             _apagar_estado(cur, chave)
             return "Cancelado. Nada foi registrado." + RODAPE
@@ -646,7 +646,7 @@ def _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos):
     if etapa == "pag_confirmar":
         if n in CONFIRMAR or n == "1":
             _apagar_estado(cur, chave)
-            return _dar_baixa(cur, estado, operador) + RODAPE
+            return _dar_baixa(cur, estado, operador, canal) + RODAPE
         if n == "2":
             _apagar_estado(cur, chave)
             return "Cancelado. Nada foi alterado." + RODAPE
@@ -665,7 +665,7 @@ def _iniciar_fluxo(cur, chave, opcao):
     return pergunta + "\n(Digite *menu* para cancelar.)"
 
 
-def tratar_mensagem(conn, chave, operador, texto):
+def tratar_mensagem(conn, chave, operador, texto, canal="WhatsApp"):
     """Processa uma mensagem de um numero autorizado e devolve a resposta."""
     cur = conn.cursor()
     cur.execute("SELECT id, nome FROM pessoas")
@@ -682,7 +682,7 @@ def tratar_mensagem(conn, chave, operador, texto):
             _apagar_estado(cur, chave)
         return MENU
     if estado and estado.get("fluxo"):
-        return _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos)
+        return _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos, canal)
 
     if estado:  # conversa iniciada pelo atalho de frase
         resultado = continuar(estado, texto, pessoas)
@@ -691,7 +691,7 @@ def tratar_mensagem(conn, chave, operador, texto):
             return "Cancelado. Nada foi registrado." + RODAPE
         if resultado == "confirmado":
             _apagar_estado(cur, chave)
-            return _registrar(conn, estado, operador) + RODAPE
+            return _registrar(conn, estado, operador, canal) + RODAPE
         if resultado == "ok":
             if estado.get("escolhido"):
                 _apagar_estado(cur, chave)
