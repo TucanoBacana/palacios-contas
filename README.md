@@ -148,3 +148,29 @@ para voltar ao Painel.
 - `export_xlsx.py` - gera um `.xlsx` de backup a partir do banco
 - `Procfile` - comando que o Render usa para iniciar o servidor
 - `.env.example` - modelo do arquivo de configuracao local (copie para `.env`)
+
+---
+
+## Bot do WhatsApp
+
+Quem esta na lista de numeros autorizados manda mensagens para o numero do bot
+(ex.: `Kevin 2 coxinhas e 1 guarana`, `2 coxinhas pro Kevin`). O bot mostra o
+resumo, pergunta quando algo for ambiguo (qual Coca? qual Karina?) e so grava
+depois do `sim`. Tambem responde `quanto o Kevin deve` e `quem deve`. A pagina
+**WhatsApp** do app mostra o estado da conexao e as ultimas mensagens.
+
+Variaveis de ambiente (no Render, aba Environment; nunca no codigo):
+
+| Variavel | O que e |
+|---|---|
+| `WHATSAPP_TOKEN` | Token de acesso da Meta (WhatsApp > Configuracao da API) |
+| `WHATSAPP_PHONE_ID` | "ID do numero de telefone" na mesma tela |
+| `WHATSAPP_VERIFY_TOKEN` | Uma frase qualquer que voce escolhe; a mesma vai na Meta |
+| `WHATSAPP_APP_SECRET` | Chave secreta do app (Configuracoes do app > Basico) |
+| `WHATSAPP_NUMEROS` | Quem pode usar: `5511999990000:Yan,5521988880000:Maria` |
+
+Na Meta (WhatsApp > Configuracao > Webhook): URL de retorno =
+`https://SEU-APP.onrender.com/whatsapp/webhook`, token de verificacao = o
+`WHATSAPP_VERIFY_TOKEN`, e assinar o campo `messages`.
+
+Testes do leitor de mensagens (sem banco): `python tests_bot.py`.

@@ -53,6 +53,21 @@ CREATE TABLE IF NOT EXISTS entradas_estoque (
     criado_em TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS whatsapp_mensagens (
+    id TEXT PRIMARY KEY,
+    telefone TEXT NOT NULL,
+    nome TEXT,
+    texto TEXT,
+    resposta TEXT,
+    criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_estado (
+    chave TEXT PRIMARY KEY,
+    dados TEXT NOT NULL,
+    atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 ALTER TABLE produtos ADD COLUMN IF NOT EXISTS categoria TEXT NOT NULL DEFAULT 'mercadinho';
 ALTER TABLE produtos ADD COLUMN IF NOT EXISTS estoque DOUBLE PRECISION NOT NULL DEFAULT 0;
 ALTER TABLE produtos ADD COLUMN IF NOT EXISTS custo DOUBLE PRECISION NOT NULL DEFAULT 0;

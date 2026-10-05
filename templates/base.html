@@ -7,6 +7,7 @@
   ('estoque', 'Estoque', 'box', ['estoque']),
   ('financeiro', 'Financeiro', 'chart', ['financeiro']),
   ('cardapio', 'Cardápio', 'list', ['cardapio']),
+  ('whatsapp', 'WhatsApp', 'chat', ['whatsapp']),
 ] %}
 <!doctype html>
 <html lang="pt-BR">
@@ -39,6 +40,7 @@
       <symbol id="i-box" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5"/><path d="M12 12v9"/></symbol>
       <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M8 16v-4"/><path d="M12 16V8"/><path d="M16 16v-6"/></symbol>
       <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></symbol>
       <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></symbol>
       <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18.5" cy="12" r="1.4"/></symbol>
       <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
@@ -95,7 +97,7 @@
     {% for endpoint, nome, ico, ativos in itens[:4] %}
     <a href="{{ url_for(endpoint) }}" class="{{ 'ativo' if request.endpoint in ativos }}"{% if request.endpoint in ativos %} aria-current="page"{% endif %}>{{ icon(ico) }}<span>{{ nome if nome != 'Mercadinho' else 'Mercado' }}</span></a>
     {% endfor %}
-    <label for="mais-toggle" role="button" tabindex="0" class="{{ 'ativo' if request.endpoint in ['estoque', 'financeiro', 'cardapio'] }}">{{ icon('dots') }}<span>Mais</span></label>
+    <label for="mais-toggle" role="button" tabindex="0" class="{{ 'ativo' if request.endpoint in ['estoque', 'financeiro', 'cardapio', 'whatsapp'] }}">{{ icon('dots') }}<span>Mais</span></label>
   </nav>
 
   <label class="scrim" for="mais-toggle"></label>

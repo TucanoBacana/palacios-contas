@@ -2,17 +2,20 @@ import json
 import os
 from datetime import date, datetime, timedelta
 
-from flask import Flask, flash, redirect, render_template, request, send_file, url_for
+from flask import Flask, Response, flash, redirect, render_template, request, send_file, url_for
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from db import CATEGORIAS, get_connection, get_or_create_pessoa, init_db
 from export_xlsx import exportar
+import whatsapp_bot
 
 FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Cartão", "Transferência", "Outro"]
 ESTOQUE_BAIXO = 5
 
 app = Flask(__name__)
 app.secret_key = "palacios-contas"  # uso interno, sem dados sensiveis
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 init_db()
 
@@ -502,6 +505,47 @@ def financeiro():
 def exportar_backup():
     caminho = exportar()
     return send_file(caminho, as_attachment=True)
+
+
+@app.route("/whatsapp/webhook", methods=["GET", "POST"])
+def whatsapp_webhook():
+    if request.method == "GET":
+        esperado = os.environ.get("WHATSAPP_VERIFY_TOKEN")
+        if (esperado and request.args.get("hub.mode") == "subscribe"
+                and request.args.get("hub.verify_token") == esperado):
+            return Response(request.args.get("hub.challenge", ""), mimetype="text/plain")
+        return Response("token invalido", status=403)
+
+    if not whatsapp_bot.assinatura_valida(request.get_data(), request.headers.get("X-Hub-Signature-256")):
+        return Response("assinatura invalida", status=403)
+    whatsapp_bot.processar_webhook(request.get_json(silent=True) or {}, get_connection)
+    return Response("ok", status=200)
+
+
+@app.route("/whatsapp")
+def whatsapp():
+    config = [
+        ("Token de acesso (WHATSAPP_TOKEN)", bool(os.environ.get("WHATSAPP_TOKEN"))),
+        ("ID do número (WHATSAPP_PHONE_ID)", bool(os.environ.get("WHATSAPP_PHONE_ID"))),
+        ("Código de verificação (WHATSAPP_VERIFY_TOKEN)", bool(os.environ.get("WHATSAPP_VERIFY_TOKEN"))),
+        ("Chave secreta do app (WHATSAPP_APP_SECRET)", bool(os.environ.get("WHATSAPP_APP_SECRET"))),
+        ("Números autorizados (WHATSAPP_NUMEROS)", bool(whatsapp_bot.numeros_permitidos())),
+    ]
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT nome, telefone, texto, resposta, "
+            "(criado_em AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo' AS criado_em "
+            "FROM whatsapp_mensagens "
+            "ORDER BY criado_em DESC LIMIT 25"
+        )
+        mensagens = cur.fetchall()
+    conn.close()
+    return render_template(
+        "whatsapp.html", config=config, mensagens=mensagens,
+        webhook_url=url_for("whatsapp_webhook", _external=True),
+        numeros=len(whatsapp_bot.numeros_permitidos()),
+    )
 
 
 @app.errorhandler(404)
