@@ -68,6 +68,33 @@ CREATE TABLE IF NOT EXISTS whatsapp_estado (
     atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS pagamentos (
+    id SERIAL PRIMARY KEY,
+    data DATE NOT NULL,
+    pessoa_id INTEGER NOT NULL REFERENCES pessoas(id) ON DELETE CASCADE,
+    valor DOUBLE PRECISION NOT NULL,
+    forma_pagamento TEXT,
+    criado_por TEXT,
+    criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS historico (
+    id SERIAL PRIMARY KEY,
+    quem TEXT,
+    acao TEXT NOT NULL,
+    detalhe TEXT,
+    criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS avisos (
+    chave TEXT PRIMARY KEY,
+    criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS valor_pago DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS lote TEXT;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_por TEXT;
+UPDATE pedidos SET valor_pago = valor_total WHERE pago AND valor_pago = 0 AND valor_total > 0;
 ALTER TABLE whatsapp_mensagens ADD COLUMN IF NOT EXISTS canal TEXT NOT NULL DEFAULT 'whatsapp';
 ALTER TABLE produtos ADD COLUMN IF NOT EXISTS categoria TEXT NOT NULL DEFAULT 'mercadinho';
 ALTER TABLE produtos ADD COLUMN IF NOT EXISTS estoque DOUBLE PRECISION NOT NULL DEFAULT 0;

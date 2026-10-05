@@ -4,7 +4,7 @@
 {% block content %}
   <header class="page-head">
     <h1>Bot</h1>
-    <p class="lede">A equipe conversa com o bot, que pergunta passo a passo (quem, qual item, quantos) e só grava depois da confirmação.</p>
+    <p class="lede">A equipe conversa com o bot, que pergunta passo a passo (quem, qual item, quantos) e só grava depois da confirmação. Cada opção também aparece como botão. Funciona no privado e em grupos (no grupo, chame o bot com @ ou use /menu).</p>
   </header>
 
   <h2 style="margin-top: 8px">Telegram</h2>
@@ -28,6 +28,51 @@
       <button type="submit" class="btn">Verificar conexão</button>
     </form>
   </div>
+
+  <h2>Avisos automáticos</h2>
+  <p class="sub-secao">O bot manda para você, no Telegram, o alerta de estoque baixo (quando um produto chega a {{ estoque_minimo }} ou menos), o resumo do dia às {{ resumo_hora }}h e um backup em Excel a cada semana.</p>
+  <ul class="linhas">
+    <li class="linha linha-simples">
+      <span class="linha-titulo">Avisos no Telegram</span>
+      <span class="linha-fim">
+        {% if avisos_ativos %}<span class="pill pill-ok">{{ icon('check') }}Ligados</span>
+        {% else %}<span class="pill pill-aviso">Falta token ou usuário</span>{% endif %}
+      </span>
+    </li>
+    <li class="linha linha-simples">
+      <span class="linha-titulo">Último backup enviado</span>
+      <span class="linha-fim">
+        {% if ultimo_backup %}<span class="pill pill-mudo">{{ ultimo_backup.strftime('%d/%m %H:%M') }}</span>
+        {% else %}<span class="pill pill-mudo">Ainda não enviado</span>{% endif %}
+      </span>
+    </li>
+    <li class="linha linha-simples">
+      <span class="linha-titulo">Monitor para manter o app acordado</span>
+      <span class="linha-fim">
+        {% if minutos_ping is none %}<span class="pill pill-aviso">Nunca acessou</span>
+        {% elif minutos_ping <= 15 %}<span class="pill pill-ok">{{ icon('check') }}Há {{ minutos_ping }} min</span>
+        {% else %}<span class="pill pill-aviso">Parado há {{ minutos_ping }} min</span>{% endif %}
+      </span>
+    </li>
+  </ul>
+  <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px">
+    <form method="post" action="{{ url_for('avisos_teste') }}">
+      <button type="submit" class="btn">Enviar resumo agora</button>
+    </form>
+    <form method="post" action="{{ url_for('backup_telegram') }}">
+      <button type="submit" class="btn">Enviar backup agora</button>
+    </form>
+  </div>
+  <details class="painel" style="margin-top: 14px">
+    <summary>Como manter o app acordado {{ icon('chevron') }}</summary>
+    <div class="painel-corpo">
+      <p class="sub-secao" style="margin: 0">O plano gratuito do Render põe o app para dormir depois de uns 15 minutos sem uso, e a primeira mensagem do bot demora. Um monitor gratuito resolve: crie uma conta em uptimerobot.com, clique em <strong>Add New Monitor</strong>, escolha <strong>HTTP(s)</strong>, cole o endereço abaixo e deixe o intervalo em 5 minutos. É esse acesso que também dispara o resumo do dia e o backup.</p>
+      <div class="campo">
+        <label for="url-saude">Endereço para o monitor</label>
+        <input id="url-saude" type="text" readonly value="{{ url_saude }}" onfocus="this.select()">
+      </div>
+    </div>
+  </details>
 
   <h2>Últimas mensagens</h2>
   {% if mensagens %}

@@ -43,7 +43,14 @@
   {% if custo == 0 and faturamento > 0 %}
   <p class="aviso">
     {{ icon('alert') }}
-    <span><strong>O lucro ainda não é real.</strong> Os produtos estão sem custo, então o lucro aparece igual ao faturamento. Preencha o custo no <a href="{{ url_for('cardapio') }}">Cardápio</a>.</span>
+    <span><strong>O lucro ainda não é real.</strong> Os produtos estão sem custo, então o lucro aparece igual ao faturamento. Preencha todos de uma vez em <a href="{{ url_for('custos') }}">Preencher custos</a>.</span>
+  </p>
+  {% endif %}
+
+  {% if sem_custo and custo > 0 %}
+  <p class="aviso">
+    {{ icon('alert') }}
+    <span><strong>{{ sem_custo }} {{ 'produto ainda está' if sem_custo == 1 else 'produtos ainda estão' }} sem custo</strong>, então o lucro pode estar maior do que é. <a href="{{ url_for('custos') }}">Preencher custos</a>.</span>
   </p>
   {% endif %}
 

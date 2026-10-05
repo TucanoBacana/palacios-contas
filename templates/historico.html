@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon %}
+{% block title %}Histórico{% endblock %}
+{% block content %}
+  <header class="page-head">
+    <h1>Histórico</h1>
+    <p class="lede">Quem registrou, editou ou apagou cada coisa. Mostra as últimas 200 ações.</p>
+  </header>
+
+  <div class="busca">
+    {{ icon('search') }}
+    <input type="search" placeholder="Buscar por nome, ação ou pessoa" aria-label="Buscar no histórico"
+           data-filtro="#lista-historico" data-vazio="#sem-historico" data-sem-enviar>
+  </div>
+
+  {% if registros %}
+  <ul class="linhas" id="lista-historico" style="margin-top: 14px">
+    {% for r in registros %}
+    <li class="linha linha-simples" data-busca="{{ r.quem }} {{ r.acao }} {{ r.detalhe }}">
+      <span class="linha-titulo">{{ r.acao }}</span>
+      <span class="linha-sub">{{ r.detalhe }}</span>
+      <span class="linha-fim">
+        <span class="pill pill-mudo">{{ r.quem }}</span>
+        <span class="pill pill-mudo">{{ r.quando.strftime('%d/%m %H:%M') }}</span>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  <p id="sem-historico" class="vazio" hidden>Nada encontrado.</p>
+  {% else %}
+  <p class="vazio">Ainda não há registros. As próximas ações aparecem aqui.</p>
+  {% endif %}
+{% endblock %}

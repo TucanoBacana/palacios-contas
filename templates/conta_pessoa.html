@@ -4,7 +4,7 @@
 {% block content %}
   {% set abertos = pedidos|rejectattr('pago')|list %}
   {% set pagos = pedidos|selectattr('pago')|list %}
-  {% set devendo = abertos|sum(attribute='valor_total') %}
+  {% set devendo = (abertos|sum(attribute='valor_total')) - (abertos|sum(attribute='valor_pago')) %}
 
   <a class="voltar" href="{{ url_for('contas') }}">{{ icon('back') }}Contas</a>
 
@@ -37,6 +37,43 @@
     <button type="submit" class="btn btn-primario btn-grande">{{ icon('check') }}Marcar tudo como pago</button>
   </form>
 
+  <details class="painel" style="margin-top: 12px">
+    <summary>Pagou só uma parte? {{ icon('chevron') }}</summary>
+    <form method="post" action="{{ url_for('pagar_parte', pessoa_id=pessoa.id) }}" class="painel-corpo quitar" style="margin-top: 0">
+      <p class="sub-secao" style="margin: 0">O valor abate dos lançamentos mais antigos primeiro. Um lançamento só vira “pago” quando o valor cobre ele inteiro.</p>
+      <div class="campo">
+        <label for="valor-parte">Valor pago (R$)</label>
+        <input type="text" id="valor-parte" name="valor" inputmode="decimal" required placeholder="Ex.: 20 ou 20,50">
+      </div>
+      <div class="quitar-campos">
+        <div class="campo">
+          <label for="forma-parte">Forma de pagamento</label>
+          <select id="forma-parte" name="forma_pagamento">
+            {% for f in formas %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label for="data-parte">Data do pagamento</label>
+          <input type="date" id="data-parte" name="data" value="{{ hoje }}">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-grande">{{ icon('check') }}Registrar pagamento parcial</button>
+    </form>
+  </details>
+
+  {% if cobranca %}
+  <details class="painel" style="margin-top: 12px">
+    <summary>Mensagem de cobrança {{ icon('chevron') }}</summary>
+    <div class="painel-corpo cobranca">
+      <textarea id="texto-cobranca" readonly rows="9" aria-label="Mensagem de cobrança">{{ cobranca }}</textarea>
+      <div class="cobranca-acoes">
+        <button type="button" class="btn btn-sm" data-copiar="#texto-cobranca">{{ icon('copy') }}Copiar</button>
+        <button type="button" class="btn btn-sm btn-primario" data-compartilhar="#texto-cobranca">{{ icon('share') }}Enviar</button>
+      </div>
+    </div>
+  </details>
+  {% endif %}
+
   <h2>Em aberto</h2>
   <ul class="linhas">
     {% for p in abertos %}
@@ -44,20 +81,34 @@
       <span class="linha-titulo">{{ p.produto }}</span>
       <span class="linha-sub">
         {{ p.quantidade|qtd }}× em {{ p.data|data_br }} {{ tag_cat(p.categoria) }}
+        {% if p.valor_pago > 0 %}<br>Já pagou {{ p.valor_pago|brl }} de {{ p.valor_total|brl }}{% endif %}
         {% if p.observacoes %}<br>{{ p.observacoes }}{% endif %}
       </span>
-      <span class="linha-fim"><span class="valor">{{ p.valor_total|brl }}</span></span>
+      <span class="linha-fim"><span class="valor">{{ (p.valor_total - p.valor_pago)|brl }}</span></span>
       <span class="item-acoes">
         <form method="post" action="{{ url_for('marcar_pago', pedido_id=p.id) }}">
           <input type="hidden" name="forma_pagamento" value="{{ p.forma_pagamento or 'Pix' }}">
           <input type="hidden" name="data" value="{{ hoje }}">
           <button type="submit" class="btn btn-sm">{{ icon('check') }}Marcar pago</button>
         </form>
+        <a class="btn btn-sm btn-quieto" href="{{ url_for('editar_pedido', pedido_id=p.id) }}" aria-label="Editar {{ p.produto }}">{{ icon('edit') }}Editar</a>
         <form method="post" action="{{ url_for('excluir_pedido', pedido_id=p.id) }}"
               onsubmit="return confirm('Excluir este lançamento? O estoque volta.');">
           <button type="submit" class="btn btn-sm btn-quieto btn-perigo" aria-label="Excluir {{ p.produto }}">{{ icon('trash') }}Excluir</button>
         </form>
       </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if pagamentos %}
+  <h2>Pagamentos recentes</h2>
+  <ul class="linhas">
+    {% for g in pagamentos %}
+    <li class="linha linha-simples">
+      <span class="linha-titulo">{{ g.valor|brl }}</span>
+      <span class="linha-sub">{{ g.data|data_br }}{% if g.forma_pagamento %} · {{ g.forma_pagamento }}{% endif %}</span>
     </li>
     {% endfor %}
   </ul>
@@ -78,6 +129,7 @@
         {{ status(true, p.data_pagamento) }}
       </span>
       <span class="item-acoes">
+        <a class="btn btn-sm btn-quieto" href="{{ url_for('editar_pedido', pedido_id=p.id) }}" aria-label="Editar {{ p.produto }}">{{ icon('edit') }}Editar</a>
         <form method="post" action="{{ url_for('excluir_pedido', pedido_id=p.id) }}"
               onsubmit="return confirm('Excluir este lançamento? O estoque volta.');">
           <button type="submit" class="btn btn-sm btn-quieto btn-perigo" aria-label="Excluir {{ p.produto }}">{{ icon('trash') }}Excluir</button>

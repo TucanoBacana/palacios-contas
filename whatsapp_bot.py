@@ -18,9 +18,10 @@ import re
 import unicodedata
 import urllib.error
 import urllib.request
-from datetime import date
 
+import servicos
 from db import get_or_create_pessoa
+from servicos import hoje
 
 log = logging.getLogger("whatsapp")
 
@@ -45,8 +46,11 @@ MENU = (
     "1) Registrar compra\n"
     "2) Consultar a conta de alguém\n"
     "3) Ver quem está devendo\n"
-    "4) Registrar pagamento\n\n"
-    "Responda com o *número*.\n"
+    "4) Registrar pagamento\n"
+    "5) Resumo de hoje\n"
+    "6) Desfazer meu último lançamento\n"
+    "7) Mensagem de cobrança\n\n"
+    "Toque num botão ou responda com o *número*.\n"
     "Digite *lista* para ver o cardápio.\n"
     "Atalho: você também pode mandar direto, ex.: *Kevin 2 coxinhas*"
 )
@@ -55,6 +59,9 @@ FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Cartão", "Transferência"]
 MENU_PALAVRAS = {"menu", "start", "inicio", "voltar", "0", "oi", "ola", "ajuda", "help", "comandos",
                  "bom dia", "boa tarde", "boa noite", "como funciona"}
 LISTA_PALAVRAS = {"lista", "cardapio", "produtos", "itens"}
+RESUMO_PALAVRAS = {"resumo", "resumo do dia", "resumo de hoje", "fechamento", "fechar o dia", "hoje"}
+DESFAZER_PALAVRAS = {"desfazer", "desfaz", "desfazer ultimo", "errei", "apagar ultimo"}
+COBRANCA_PALAVRAS = {"cobranca", "cobrar", "mensagem de cobranca"}
 
 
 # ---------------------------------------------------------------- texto
@@ -358,7 +365,7 @@ def _apagar_estado(cur, chave):
 
 def _texto_conta(cur, pessoa):
     cur.execute(
-        """SELECT p.data, p.quantidade, pr.nome AS produto, p.valor_total
+        """SELECT p.data, p.quantidade, pr.nome AS produto, (p.valor_total - p.valor_pago) AS valor_total
            FROM pedidos p JOIN produtos pr ON pr.id = p.produto_id
            WHERE p.pessoa_id = %s AND NOT p.pago
            ORDER BY p.data DESC, p.id DESC""",
@@ -380,18 +387,18 @@ def _texto_conta(cur, pessoa):
 
 def _texto_ranking(cur):
     cur.execute(
-        """SELECT pe.nome, SUM(p.valor_total) AS total
+        """SELECT pe.nome, SUM(p.valor_total - p.valor_pago) AS total
            FROM pedidos p JOIN pessoas pe ON pe.id = p.pessoa_id
            WHERE NOT p.pago GROUP BY pe.id, pe.nome ORDER BY total DESC LIMIT 8"""
     )
     linhas = cur.fetchall()
-    cur.execute("SELECT COALESCE(SUM(valor_total), 0) AS t FROM pedidos WHERE NOT pago")
+    cur.execute("SELECT COALESCE(SUM(valor_total - valor_pago), 0) AS t FROM pedidos WHERE NOT pago")
     geral = cur.fetchone()["t"]
     if not linhas:
         return "Ninguém está devendo nada agora."
     saida = [f"Falta receber *{brl(geral)}*. Quem mais deve:"]
     for i, l in enumerate(linhas, 1):
-        saida.append(f"{i}) {l['nome']}: {brl(l['total'])}")
+        saida.append(f"{i}. {l['nome']}: {brl(l['total'])}")  # "1." e nao "1)": nao vira botao
     return "\n".join(saida)
 
 
@@ -400,8 +407,10 @@ def _registrar(conn, estado, operador, canal="WhatsApp"):
     pessoa = estado["pessoa"]
     pessoa_id = pessoa["id"] if "id" in pessoa else get_or_create_pessoa(conn, pessoa["novo"])
     nome = pessoa.get("nome") or pessoa["novo"]
-    hoje = date.today().isoformat()
+    data = hoje().isoformat()
     obs = f"via {canal} ({operador})"
+    criado_por = f"{canal}:{operador}"
+    lote = servicos.novo_lote()
     total, avisos, linhas = 0.0, [], []
     for it in estado["itens"]:
         cur.execute("SELECT nome, preco, custo FROM produtos WHERE id = %s", (it["produto"]["id"],))
@@ -414,10 +423,11 @@ def _registrar(conn, estado, operador, canal="WhatsApp"):
         cur.execute(
             """INSERT INTO pedidos
                (data, pessoa_id, produto_id, quantidade, valor_unitario, valor_total,
-                custo_unitario, custo_total, forma_pagamento, pago, data_pagamento, observacoes)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Pix', FALSE, NULL, %s)""",
-            (hoje, pessoa_id, it["produto"]["id"], qtd, prod["preco"], valor,
-             prod["custo"] or 0, custo, obs),
+                custo_unitario, custo_total, forma_pagamento, pago, data_pagamento, observacoes,
+                lote, criado_por)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Pix', FALSE, NULL, %s, %s, %s)""",
+            (data, pessoa_id, it["produto"]["id"], qtd, prod["preco"], valor,
+             prod["custo"] or 0, custo, obs, lote, criado_por),
         )
         cur.execute("UPDATE produtos SET estoque = estoque - %s WHERE id = %s RETURNING estoque",
                     (qtd, it["produto"]["id"]))
@@ -426,9 +436,9 @@ def _registrar(conn, estado, operador, canal="WhatsApp"):
             avisos.append(f"Atenção: {prod['nome']} ficou com estoque {sobra:g}.")
         total += valor
         linhas.append(f"• {qtd}× {prod['nome']}: {brl(valor)}")
-    cur.execute("SELECT COALESCE(SUM(valor_total), 0) AS t FROM pedidos WHERE pessoa_id = %s AND NOT pago",
-                (pessoa_id,))
-    divida = cur.fetchone()["t"]
+    divida, _ = servicos.pendencia_pessoa(cur, pessoa_id)
+    servicos.registrar_historico(cur, f"{canal}: {operador}", "Registrou venda",
+                                 f"{nome}: {len(linhas)} item(ns), {brl(total)}")
     saida = [f"*Registrado* para *{nome}*:"] + linhas
     saida.append(f"Total: *{brl(total)}*. Agora {nome} deve {brl(divida)} no total.")
     return "\n".join(saida + avisos)
@@ -492,6 +502,11 @@ def _texto_mais(estado):
     return "\n".join(linhas)
 
 
+def _pergunta_forma(estado):
+    opcoes = "\n".join(f"{i}) {f}" for i, f in enumerate(FORMAS_PAGAMENTO, 1))
+    return f"Como foi o pagamento?\n{opcoes}"
+
+
 def _apos_pessoa(cur, chave, estado):
     fluxo = estado["fluxo"]
     if fluxo == "compra":
@@ -501,32 +516,73 @@ def _apos_pessoa(cur, chave, estado):
     if fluxo == "consulta":
         _apagar_estado(cur, chave)
         return _texto_conta(cur, estado["pessoa"]) + RODAPE
-    cur.execute("SELECT COALESCE(SUM(valor_total), 0) AS t, COUNT(*) AS c FROM pedidos "
-                "WHERE pessoa_id = %s AND NOT pago", (estado["pessoa"]["id"],))
-    r = cur.fetchone()
-    if r["c"] == 0:
+    if fluxo == "cobranca":
+        _apagar_estado(cur, chave)
+        texto = servicos.texto_cobranca(cur, estado["pessoa"])
+        if texto is None:
+            return f"*{_nome_pessoa(estado)}* não deve nada. Não precisa cobrar." + RODAPE
+        return "Mensagem pronta. Copie e envie para a pessoa:\n\n" + texto + RODAPE
+    pendente, qtd = servicos.pendencia_pessoa(cur, estado["pessoa"]["id"])
+    if qtd == 0:
         _apagar_estado(cur, chave)
         return f"*{_nome_pessoa(estado)}* não deve nada." + RODAPE
-    estado.update(etapa="forma", pendente=float(r["t"]), qtd_pendente=r["c"])
+    estado.update(etapa="pag_tipo", pendente=pendente, qtd_pendente=qtd)
     _salvar_estado(cur, chave, estado)
-    opcoes = "\n".join(f"{i}) {f}" for i, f in enumerate(FORMAS_PAGAMENTO, 1))
-    return (f"*{_nome_pessoa(estado)}* deve *{brl(r['t'])}* em {r['c']} "
-            f"{'item' if r['c'] == 1 else 'itens'}.\nComo foi o pagamento?\n{opcoes}\n"
-            "(A baixa é do valor total. Para pagar só uma parte, use o app.)")
+    return (f"*{_nome_pessoa(estado)}* deve *{brl(pendente)}* em {qtd} "
+            f"{'item' if qtd == 1 else 'itens'}.\nQuanto foi pago?\n"
+            f"1) Tudo ({brl(pendente)})\n2) Só uma parte")
+
+
+def ler_valor(bruto):
+    """'20', '20,50', 'R$ 1.020,50' -> float; None se nao der para entender."""
+    limpo = re.sub(r"[^\d,.]", "", bruto or "")
+    if not limpo or not re.search(r"\d", limpo):
+        return None
+    if "," in limpo:
+        limpo = limpo.replace(".", "").replace(",", ".")
+    elif limpo.count(".") > 1 or re.fullmatch(r"\d{1,3}\.\d{3}", limpo):
+        limpo = limpo.replace(".", "")
+    try:
+        return round(float(limpo), 2)
+    except ValueError:
+        return None
 
 
 def _dar_baixa(cur, estado, operador, canal="WhatsApp"):
-    cur.execute(
-        """UPDATE pedidos SET pago = TRUE, data_pagamento = %s, forma_pagamento = %s,
-                  observacoes = COALESCE(observacoes || ' ', '') || %s
-           WHERE pessoa_id = %s AND NOT pago RETURNING valor_total""",
-        (date.today().isoformat(), estado["forma"], f"[baixa via {canal} ({operador})]",
-         estado["pessoa"]["id"]),
-    )
-    linhas = cur.fetchall()
-    total = sum(l["valor_total"] for l in linhas)
-    return (f"*Baixa registrada*: {_nome_pessoa(estado)} pagou *{brl(total)}* "
-            f"({estado['forma']}), {len(linhas)} {'item' if len(linhas) == 1 else 'itens'}.")
+    quem = f"{canal}: {operador}"
+    try:
+        r = servicos.aplicar_pagamento(cur, estado["pessoa"]["id"], estado.get("valor"), estado["forma"],
+                                       hoje().isoformat(), quem, f"[baixa via {canal} ({operador})]")
+    except ValueError as erro:
+        return f"Não consegui registrar: {erro}"
+    servicos.registrar_historico(cur, quem, "Registrou pagamento",
+                                 f"{_nome_pessoa(estado)}: {brl(r['pago'])} ({estado['forma']})")
+    linhas = [f"*Pagamento registrado*: {_nome_pessoa(estado)} pagou *{brl(r['pago'])}* ({estado['forma']})."]
+    if r["restante"] > 0:
+        linhas.append(f"Ainda deve {brl(r['restante'])}.")
+    else:
+        linhas.append("A conta está quitada.")
+    return "\n".join(linhas)
+
+
+def _confirmar_desfazer(cur, estado, criado_por, quem):
+    itens = servicos.ultimo_lancamento(cur, criado_por)
+    if not itens or sorted(i["id"] for i in itens) != sorted(estado["ids"]):
+        return "O último lançamento mudou. Escolha *6* de novo para ver qual será desfeito." + RODAPE
+    try:
+        return servicos.desfazer_itens(cur, itens, quem) + RODAPE
+    except ValueError as erro:
+        return str(erro) + RODAPE
+
+
+def _iniciar_desfazer(cur, chave, criado_por):
+    itens = servicos.ultimo_lancamento(cur, criado_por)
+    if not itens:
+        return (f"Não achei nenhum lançamento seu nas últimas {servicos.JANELA_DESFAZER_MIN // 60} horas "
+                "para desfazer." + RODAPE)
+    _salvar_estado(cur, chave, {"fluxo": "desfazer", "etapa": "desfazer_confirmar", "itens": [],
+                                "ids": [i["id"] for i in itens]})
+    return servicos.texto_ultimo(itens) + "\n\nDesfazer?\n1) Sim, desfazer\n2) Não, manter"
 
 
 def _adicionar_item(estado, produto, qtd):
@@ -536,7 +592,7 @@ def _adicionar_item(estado, produto, qtd):
     return _texto_mais(estado)
 
 
-def _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos, canal="WhatsApp"):
+def _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos, canal="WhatsApp", bruto=""):
     etapa = estado["etapa"]
     if n in ("cancelar", "cancela", "cancel") or (n in CANCELAR and etapa != "mais"):
         _apagar_estado(cur, chave)
@@ -635,14 +691,37 @@ def _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos, c
         return "Responda *1* para registrar ou *2* para cancelar."
 
     # ----- pagamento
+    if etapa == "pag_tipo":
+        if n == "1":
+            estado["valor"] = None
+            estado["etapa"] = "forma"
+            return salvar(_pergunta_forma(estado))
+        if n == "2":
+            estado["etapa"] = "pag_valor"
+            return salvar("Quanto a pessoa pagou? Digite só o valor, por exemplo *20* ou *20,50*.")
+        return "Responda *1* para pagar tudo ou *2* para pagar só uma parte."
+    if etapa == "pag_valor":
+        valor = ler_valor(bruto)
+        if valor is None or valor <= 0:
+            return "Não entendi o valor. Digite só o número, por exemplo *20* ou *20,50*."
+        if servicos.centavos(valor) > servicos.centavos(estado["pendente"]):
+            return f"O valor passa do que a pessoa deve ({brl(estado['pendente'])}). Digite um valor menor."
+        estado["valor"] = valor
+        if servicos.centavos(valor) == servicos.centavos(estado["pendente"]):
+            estado["valor"] = None
+        estado["etapa"] = "forma"
+        return salvar(_pergunta_forma(estado))
     if etapa == "forma":
         i = _numero(n, len(FORMAS_PAGAMENTO))
         if i is None:
             return "Responda com o número da forma de pagamento (1 a %d)." % len(FORMAS_PAGAMENTO)
         estado["forma"] = FORMAS_PAGAMENTO[i]
         estado["etapa"] = "pag_confirmar"
-        return salvar(f"Dar baixa em *{brl(estado['pendente'])}* de *{_nome_pessoa(estado)}* "
-                      f"({estado['forma']})?\n1) Sim, dar baixa\n2) Não, cancelar")
+        valor = estado.get("valor") or estado["pendente"]
+        sobra = round(estado["pendente"] - valor, 2)
+        extra = f" Depois disso ela ainda deve {brl(sobra)}." if sobra > 0 else " A conta fica quitada."
+        return salvar(f"Registrar pagamento de *{brl(valor)}* de *{_nome_pessoa(estado)}* "
+                      f"({estado['forma']})?{extra}\n1) Sim, registrar\n2) Não, cancelar")
     if etapa == "pag_confirmar":
         if n in CONFIRMAR or n == "1":
             _apagar_estado(cur, chave)
@@ -650,7 +729,17 @@ def _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos, c
         if n == "2":
             _apagar_estado(cur, chave)
             return "Cancelado. Nada foi alterado." + RODAPE
-        return "Responda *1* para dar baixa ou *2* para cancelar."
+        return "Responda *1* para registrar ou *2* para cancelar."
+
+    # ----- desfazer
+    if etapa == "desfazer_confirmar":
+        if n in CONFIRMAR or n == "1":
+            _apagar_estado(cur, chave)
+            return _confirmar_desfazer(cur, estado, f"{canal}:{operador}", f"{canal}: {operador}")
+        if n == "2":
+            _apagar_estado(cur, chave)
+            return "Certo, nada foi desfeito." + RODAPE
+        return "Responda *1* para desfazer ou *2* para manter."
 
     _apagar_estado(cur, chave)
     return MENU
@@ -659,7 +748,8 @@ def _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos, c
 def _iniciar_fluxo(cur, chave, opcao):
     fluxos = {"1": ("compra", "*Registrar compra*\nQuem está comprando? Digite o nome."),
               "2": ("consulta", "*Consultar conta*\nDe quem você quer ver a conta? Digite o nome."),
-              "4": ("pagamento", "*Registrar pagamento*\nQuem pagou? Digite o nome.")}
+              "4": ("pagamento", "*Registrar pagamento*\nQuem pagou? Digite o nome."),
+              "7": ("cobranca", "*Mensagem de cobrança*\nDe quem? Digite o nome.")}
     fluxo, pergunta = fluxos[opcao]
     _salvar_estado(cur, chave, {"fluxo": fluxo, "etapa": "quem", "itens": []})
     return pergunta + "\n(Digite *menu* para cancelar.)"
@@ -682,7 +772,7 @@ def tratar_mensagem(conn, chave, operador, texto, canal="WhatsApp"):
             _apagar_estado(cur, chave)
         return MENU
     if estado and estado.get("fluxo"):
-        return _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos, canal)
+        return _passo_fluxo(conn, cur, chave, operador, estado, n, pessoas, idx_produtos, canal, texto)
 
     if estado:  # conversa iniciada pelo atalho de frase
         resultado = continuar(estado, texto, pessoas)
@@ -704,10 +794,14 @@ def tratar_mensagem(conn, chave, operador, texto, canal="WhatsApp"):
             return pergunta
         _apagar_estado(cur, chave)  # nao era resposta: trata como mensagem nova
 
-    if n in ("1", "2", "4"):
-        return _iniciar_fluxo(cur, chave, n)
+    if n in ("1", "2", "4", "7") or n in COBRANCA_PALAVRAS:
+        return _iniciar_fluxo(cur, chave, "7" if n in COBRANCA_PALAVRAS else n)
     if n == "3":
         return _texto_ranking(cur) + RODAPE
+    if n == "5" or n in RESUMO_PALAVRAS:
+        return servicos.texto_resumo(cur) + RODAPE
+    if n == "6" or n in DESFAZER_PALAVRAS:
+        return _iniciar_desfazer(cur, chave, f"{canal}:{operador}")
     if n in LISTA_PALAVRAS:
         return _texto_lista(cur) + RODAPE
     if n in CANCELAR:
@@ -856,6 +950,9 @@ def processar_webhook(payload, abrir_conexao):
                 cur.execute("UPDATE whatsapp_mensagens SET resposta = %s WHERE id = %s", (resposta, msg_id))
             conn.commit()
             enviar_texto(telefone, resposta)
+            if operador is not None:
+                import notificacoes  # import tardio: evita ciclo com telegram_bot
+                notificacoes.checar_estoque(conn)
         except Exception:
             conn.rollback()
             log.exception("Falha no webhook do WhatsApp")

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>Sem conexão – PALACIO'S</title>
+</head>
+<body>
+  <main class="entrar">
+    <img class="entrar-marca" src="{{ url_for('static', filename='icon.svg') }}" alt="" width="72" height="72">
+    <h1>Sem conexão</h1>
+    <p class="lede">O celular está sem internet e nada foi registrado. Conecte e tente de novo: as contas só aparecem online para nunca mostrar valores velhos.</p>
+    <button type="button" class="btn btn-primario btn-grande" onclick="location.reload()">Tentar de novo</button>
+  </main>
+</body>
+</html>

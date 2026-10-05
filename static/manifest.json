@@ -1,12 +1,24 @@
 {
+  "id": "/",
   "name": "PALACIO'S - Contas",
   "short_name": "PALACIO'S",
+  "description": "Contas, vendas e estoque do Mercadinho e do Restaurante.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#120F1C",
   "theme_color": "#120F1C",
   "lang": "pt-BR",
   "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Nova venda", "short_name": "Venda", "url": "/mercadinho" },
+    { "name": "Nova encomenda", "short_name": "Encomenda", "url": "/restaurante" },
+    { "name": "Contas", "short_name": "Contas", "url": "/contas" }
   ]
 }

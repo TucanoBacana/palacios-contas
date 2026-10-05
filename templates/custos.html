@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon %}
+{% block title %}Custos{% endblock %}
+{% block content %}
+  <a class="voltar" href="{{ url_for('cardapio') }}">{{ icon('back') }}Cardápio</a>
+
+  <header class="page-head">
+    <h1>Preencher custos</h1>
+    <p class="lede">Digite quanto custa cada produto para você. Com isso o Financeiro mostra o lucro de verdade, e não só o faturamento.</p>
+  </header>
+
+  {% if sem_custo %}
+  <p class="aviso">
+    {{ icon('alert') }}
+    <span><strong>{{ sem_custo }} {{ 'produto sem custo' if sem_custo == 1 else 'produtos sem custo' }}.</strong> Os sem custo aparecem primeiro em cada grupo.</span>
+  </p>
+  {% endif %}
+
+  <form method="post" class="custos-form">
+    <label class="escolha painel" style="margin-top: 14px">
+      <input type="checkbox" name="retroativo" checked>
+      <span>Aplicar também às vendas antigas desses produtos que ficaram sem custo. Quem já tem custo guardado não muda.</span>
+    </label>
+
+    <div class="busca" style="margin-top: 14px">
+      {{ icon('search') }}
+      <input type="search" placeholder="Buscar produto" aria-label="Buscar produto"
+             data-filtro="#custos-listas" data-vazio="#sem-custos" data-sem-enviar>
+    </div>
+
+    <div id="custos-listas">
+      {% for titulo, lista in [('Mercadinho', mercadinho), ('Restaurante', restaurante)] %}
+      <h2>{{ titulo }}</h2>
+      <ul class="linhas">
+        {% for prod in (lista|selectattr('custo', 'le', 0)|list) + (lista|selectattr('custo', 'gt', 0)|list) %}
+        <li class="custo-linha" data-busca="{{ prod.nome }}">
+          <label for="custo_{{ prod.id }}" class="custo-nome">
+            {{ prod.nome }}
+            <small>Vende por {{ prod.preco|brl }}</small>
+          </label>
+          <div class="custo-campo">
+            <span aria-hidden="true">R$</span>
+            <input type="number" id="custo_{{ prod.id }}" name="custo_{{ prod.id }}" step="0.01" min="0"
+                   inputmode="decimal" value="{{ prod.custo if prod.custo > 0 else '' }}" placeholder="0,00">
+          </div>
+        </li>
+        {% else %}
+        <li class="vazio">Nenhum produto aqui.</li>
+        {% endfor %}
+      </ul>
+      {% endfor %}
+    </div>
+    <p id="sem-custos" class="vazio" hidden>Nenhum produto com esse nome.</p>
+
+    <button type="submit" class="btn btn-primario btn-grande custos-salvar">{{ icon('check') }}Salvar todos os custos</button>
+  </form>
+{% endblock %}

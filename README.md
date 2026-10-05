@@ -153,15 +153,21 @@ para voltar ao Painel.
 
 ## Bot (Telegram e WhatsApp)
 
-A equipe manda mensagem para o bot e recebe um menu com opcoes numeradas:
+A equipe manda mensagem para o bot e recebe um menu. No Telegram cada opcao
+numerada tambem aparece como **botao** (tocar ou digitar o numero e igual):
 
 1. Registrar compra: o bot pergunta quem esta comprando, qual item (e qual
    Coca, se houver mais de uma), quantas unidades, se quer mais algum item, e
    mostra o resumo para confirmar.
 2. Consultar a conta de alguem.
 3. Ver quem esta devendo.
-4. Registrar pagamento: pergunta quem pagou e como (Pix, dinheiro...), e da
-   baixa no valor total.
+4. Registrar pagamento: pergunta quem pagou, se foi **tudo ou so uma parte**
+   (e quanto) e como (Pix, dinheiro...). O valor abate dos lancamentos mais
+   antigos primeiro.
+5. Resumo de hoje (vendido, recebido, em aberto, estoque baixo).
+6. Desfazer meu ultimo lancamento (das ultimas 2 horas, e so se ainda nao
+   recebeu pagamento).
+7. Mensagem de cobranca pronta para copiar e mandar.
 
 Em qualquer ponto, `menu` volta ao inicio e `cancelar` desiste. `lista` mostra
 o cardapio. O atalho por frase (`Kevin 2 coxinhas`) tambem funciona. Nada e
@@ -178,9 +184,30 @@ conexao e as ultimas mensagens.
    - `TELEGRAM_USUARIOS`: quem pode usar, `123456789:Yan,987654321:Maria`
      (ID numerico do Telegram e nome). Para descobrir o ID, mande qualquer
      mensagem ao bot: ele responde com o ID da pessoa.
-3. No app, pagina **Bot**, clique em **Conectar Telegram ao app**.
+3. No app, pagina **Bot**, clique em **Conectar Telegram ao app** (o app tambem
+   reconecta sozinho a cada reinicio no Render).
 
-Hoje o bot responde so em conversa individual (grupos ficam para depois).
+**Em grupo:** adicione o bot ao grupo. Ele so reage a `/menu`, a mensagens que
+o chamam com `@usuario_do_bot` e a respostas a mensagens dele; o resto da
+conversa do grupo ele ignora. Os botoes funcionam so para quem abriu a conversa.
+Se quiser que ele leia tudo no grupo, desligue o "Group Privacy" no BotFather
+(`/mybots` > bot > Bot Settings), mas nao e necessario.
+
+### Avisos automaticos (Telegram)
+
+O bot manda para `TELEGRAM_AVISOS` (IDs separados por virgula; se nao existir,
+so o primeiro de `TELEGRAM_USUARIOS`):
+
+- **Estoque baixo**: uma vez quando um produto chega a `ESTOQUE_MINIMO` (padrao
+  5) ou menos; so avisa de novo depois de ser reposto.
+- **Resumo do dia**, a partir das `RESUMO_HORA` (padrao 20h, horario de Brasilia).
+- **Backup semanal** em Excel (tambem ha o botao "Enviar backup agora").
+
+O Render gratuito nao tem agendador, entao essas tarefas rodam quando alguem
+acessa `https://SEU-APP.onrender.com/saude`. Crie um monitor gratuito no
+**UptimeRobot** (Add New Monitor > HTTP(s) > esse endereco > a cada 5 minutos).
+Isso tambem impede o app de "dormir". A pagina **Bot** mostra se o monitor esta
+acessando.
 
 ### WhatsApp (em espera: depende da Meta liberar a conta)
 
@@ -188,4 +215,22 @@ Variaveis: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_VERIFY_TOKEN`,
 `WHATSAPP_APP_SECRET`, `WHATSAPP_NUMEROS` (`5511999990000:Yan`). Webhook:
 `https://SEU-APP.onrender.com/whatsapp/webhook`, assinando o campo `messages`.
 
-Testes do leitor de mensagens (sem banco): `python tests_bot.py`.
+## Outras funcoes do app
+
+- **Pagamento parcial**: na conta da pessoa, "Pagou so uma parte?".
+- **Editar lancamento**: troca pessoa, produto, quantidade, data ou observacao
+  (o estoque se ajusta). Com pagamento ja recebido, so pessoa/data/observacao.
+- **Preencher custos** (Cardapio): todos os custos de uma vez, com opcao de
+  aplicar nas vendas antigas que ficaram sem custo.
+- **Mensagem de cobranca**: na conta da pessoa; `COBRANCA_PIX` (opcional) inclui
+  sua chave Pix no texto.
+- **Historico**: quem registrou, editou ou apagou cada coisa (pelo bot aparece
+  o nome de quem usou; pelo site aparece "App").
+- **Instalar no celular**: no iPhone, Safari > Compartilhar > Adicionar a Tela
+  de Inicio; no Android, menu do Chrome > Instalar app.
+
+## Testes
+
+- Leitor de mensagens (sem banco): `python tests_bot.py`
+- Ponta a ponta (app, bot, Telegram e avisos), num schema temporario do banco
+  que e apagado no fim, sem tocar nos dados reais: `python tests_integracao.py`

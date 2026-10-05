@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon %}
+{% block title %}Editar lançamento{% endblock %}
+{% block content %}
+  <a class="voltar" href="{{ url_for('conta_pessoa', pessoa_id=pedido.pessoa_id) }}">{{ icon('back') }}{{ pedido.pessoa }}</a>
+
+  <header class="page-head">
+    <h1>Editar lançamento</h1>
+    <p class="lede">Corrija quem levou, o produto, a quantidade ou a data. O estoque se ajusta sozinho e a alteração fica no <a href="{{ url_for('historico') }}">Histórico</a>.</p>
+  </header>
+
+  {% if travado %}
+  <p class="aviso">
+    {{ icon('alert') }}
+    <span>Esse lançamento já recebeu {{ pedido.valor_pago|brl }} de pagamento, então só dá para mudar a pessoa, a data e a observação.</span>
+  </p>
+  {% endif %}
+
+  <form method="post" class="painel editar-form" style="margin-top: 14px">
+    <div class="campo">
+      <label for="pessoa_id">Pessoa</label>
+      <select id="pessoa_id" name="pessoa_id">
+        {% for p in pessoas %}<option value="{{ p.id }}" {{ 'selected' if p.id == pedido.pessoa_id }}>{{ p.nome }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="campo">
+      <label for="produto_id">Produto</label>
+      <select id="produto_id" name="produto_id" {{ 'disabled' if travado }}>
+        {% for cat, nome_cat in [('mercadinho', 'Mercadinho'), ('restaurante', 'Restaurante')] %}
+        <optgroup label="{{ nome_cat }}">
+          {% for pr in produtos if pr.categoria == cat %}<option value="{{ pr.id }}" {{ 'selected' if pr.id == pedido.produto_id }}>{{ pr.nome }}</option>{% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="campos">
+      <div class="campo">
+        <label for="quantidade">Quantidade</label>
+        <input type="number" id="quantidade" name="quantidade" step="0.5" min="0.5" inputmode="decimal"
+               value="{{ pedido.quantidade|qtd|replace(',', '.') }}" {{ 'disabled' if travado }} required>
+      </div>
+      <div class="campo">
+        <label for="data">Data</label>
+        <input type="date" id="data" name="data" value="{{ pedido.data.isoformat() }}" required>
+      </div>
+    </div>
+    <div class="campo">
+      <label for="observacoes">Observação</label>
+      <input type="text" id="observacoes" name="observacoes" value="{{ pedido.observacoes or '' }}" maxlength="200">
+    </div>
+    <p class="sub-secao" style="margin: 0">Valor atual: {{ pedido.valor_total|brl }}. Se trocar o produto, o preço passa a ser o do cardápio de hoje.</p>
+    <button type="submit" class="btn btn-primario btn-grande">{{ icon('check') }}Salvar alterações</button>
+  </form>
+{% endblock %}

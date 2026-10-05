@@ -520,6 +520,7 @@ h2 {
   color: var(--brand);
 }
 .btn-sm {
+  white-space: nowrap;
   min-height: 38px;
   padding: 0 14px;
   font-size: 0.85rem;
@@ -1401,6 +1402,7 @@ a.linha:hover {
 }
 .item-acoes {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
   grid-column: 1 / -1;
@@ -1427,6 +1429,135 @@ a.linha:hover {
 .tela-erro p {
   color: var(--muted);
   max-width: 44ch;
+}
+
+/* ---------- entrar e sem conexao ---------- */
+
+.entrar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: max(56px, env(safe-area-inset-top)) 16px 40px;
+  text-align: center;
+}
+.entrar h1 {
+  font: 700 1.5rem/1.2 var(--font-display);
+  letter-spacing: -0.02em;
+}
+.entrar-marca {
+  border-radius: 20px;
+}
+.entrar .aviso {
+  width: 100%;
+  margin-top: 0;
+  text-align: left;
+}
+.entrar-form {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  margin-top: 8px;
+  text-align: left;
+}
+
+/* ---------- formularios extras ---------- */
+
+textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  font: 500 0.95rem/1.5 var(--font-body);
+  color: var(--text);
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  resize: vertical;
+}
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 4px var(--brand-soft);
+}
+.editar-form {
+  display: grid;
+  gap: 16px;
+}
+select:disabled,
+input:disabled {
+  opacity: 0.55;
+}
+.cobranca {
+  display: grid;
+  gap: 12px;
+}
+.cobranca-acoes {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------- preencher custos ---------- */
+
+.custo-linha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.custo-linha:last-child {
+  border-bottom: 0;
+}
+.custo-linha[hidden] {
+  display: none;
+}
+.custo-nome {
+  display: grid;
+  gap: 2px;
+  font-weight: 700;
+}
+.custo-nome small {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.82rem;
+}
+.custo-campo {
+  position: relative;
+}
+.custo-campo span {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-weight: 700;
+  pointer-events: none;
+}
+.custo-campo input {
+  padding-left: 40px;
+  text-align: right;
+}
+.escolha input[type="checkbox"] {
+  flex: none;
+}
+.custos-form {
+  padding-bottom: 24px;
+}
+.custos-salvar {
+  position: sticky;
+  bottom: calc(var(--dock-space) - 8px);
+  width: 100%;
+  margin-top: 24px;
+  z-index: 5;
+}
+@media (min-width: 920px) {
+  .custos-salvar {
+    bottom: 20px;
+    width: auto;
+  }
 }
 
 /* ---------- movimento reduzido ---------- */

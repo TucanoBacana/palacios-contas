@@ -76,6 +76,43 @@
     });
   });
 
+  /* ---------- copiar e enviar mensagem de cobranca ---------- */
+  $$("[data-copiar]").forEach(function (botao) {
+    botao.addEventListener("click", function () {
+      var campo = $(botao.getAttribute("data-copiar"));
+      if (!campo) return;
+      var avisar = function () {
+        var antes = botao.innerHTML;
+        botao.textContent = "Copiado";
+        setTimeout(function () { botao.innerHTML = antes; }, 1800);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(campo.value).then(avisar, function () { campo.select(); });
+      } else {
+        campo.select();
+        try { document.execCommand("copy"); avisar(); } catch (err) { /* o texto fica selecionado */ }
+      }
+    });
+  });
+  $$("[data-compartilhar]").forEach(function (botao) {
+    botao.addEventListener("click", function () {
+      var campo = $(botao.getAttribute("data-compartilhar"));
+      if (!campo) return;
+      if (navigator.share) {
+        navigator.share({ text: campo.value }).catch(function () { /* cancelou */ });
+      } else {
+        window.open("https://wa.me/?text=" + encodeURIComponent(campo.value), "_blank", "noopener");
+      }
+    });
+  });
+
+  /* ---------- app instalavel: service worker ---------- */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/sw.js").catch(function () { /* sem suporte: segue normal */ });
+    });
+  }
+
   /* ---------- comanda (venda / encomenda) ---------- */
   var form = $("#form-venda");
   if (!form) return;

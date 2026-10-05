@@ -5,6 +5,7 @@
   <header class="page-head">
     <h1>Cardápio</h1>
     <p class="lede">Preço de venda e custo de cada produto. O custo alimenta o lucro em <a href="{{ url_for('financeiro') }}">Financeiro</a>; o estoque se ajusta em <a href="{{ url_for('estoque') }}">Estoque</a>.</p>
+    <a class="btn btn-sm" style="margin-top: 12px" href="{{ url_for('custos') }}">{{ icon('edit') }}Preencher todos os custos de uma vez</a>
   </header>
 
   <details class="painel">
