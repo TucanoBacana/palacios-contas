@@ -434,8 +434,8 @@ try:
         ent = q("SELECT COALESCE(SUM(quantidade),0) u, COALESCE(SUM(custo_total),0) c FROM entradas_estoque WHERE referencia IS NOT NULL")[0]
         confere(ent["u"] == 154 and abs(ent["c"] - 299.63) < 0.011, f"154 unidades e R$ 299,63 de custo ({ent})")
         coca = q("SELECT estoque, custo, preco, ean, sku FROM produtos WHERE numero_item = 9")[0]
-        confere(coca["estoque"] == 15 and abs(coca["custo"] - 3.8) < 1e-9 and coca["preco"] == 6 and coca["ean"] == "07894900010015",
-                f"coca existente: soma estoque, custo e preco do arquivo ({coca})")
+        confere(coca["estoque"] == 15 and abs(coca["custo"] - 3.8) < 1e-9 and coca["preco"] == 7 and coca["ean"] == "07894900010015",
+                f"coca existente: soma estoque, novo custo e mantem o preco ({coca})")
         confere(q("SELECT COUNT(*) n FROM produtos WHERE nome ILIKE '%coca%zero%'")[0]["n"] == 1, "coca zero criada")
         importar_estoque.importar(ARQ)
         confere(q("SELECT SUM(estoque) s FROM produtos WHERE ean IS NOT NULL")[0]["s"] == 157, "rodar de novo nao soma de novo")

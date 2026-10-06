@@ -4,7 +4,7 @@ Regras:
   - nao duplica produto: casa por EAN, depois SKU, depois um apelido fixo, depois pelo nome;
   - produto que ja existe so recebe a quantidade (soma ao estoque) e uma "entrada de estoque";
   - o custo do produto vira a media ponderada entre o estoque antigo e o novo (se o antigo tinha custo);
-  - o preco de venda do arquivo passa a valer;
+  - produto novo nasce com o preco do arquivo; produto que ja existia MANTEM o preco que tinha;
   - rodar o mesmo arquivo duas vezes nao soma duas vezes (cada entrada guarda a referencia da compra).
 
 Uso:
@@ -96,19 +96,19 @@ def importar(caminho, dry_run=False):
             estoque_antes, custo_antes = float(prod["estoque"]), float(prod["custo"] or 0)
             somados.append(f"{prod['nome']} (achado por {como}): {qtd_texto(estoque_antes)} + {qtd_texto(qtd)}")
             if abs(prod["preco"] - preco) > 0.001:
-                precos.append(f"{prod['nome']}: {brl(prod['preco'])} -> {brl(preco)}")
+                precos.append(f"{prod['nome']}: mantido {brl(prod['preco'])} (arquivo sugere {brl(preco)})")
 
         if estoque_antes > 0 and custo_antes > 0:
             custo_novo = round((estoque_antes * custo_antes + qtd * custo_u) / (estoque_antes + qtd), 4)
         else:
             custo_novo = custo_u
         cur.execute(
-            """UPDATE produtos SET estoque = estoque + %s, custo = %s, preco = %s,
+            """UPDATE produtos SET estoque = estoque + %s, custo = %s,
                       ean = COALESCE(ean, %s), sku = COALESCE(sku, %s), grupo = COALESCE(grupo, %s),
                       estoque_estimado = estoque_estimado OR %s,
                       obs_estoque = CASE WHEN %s THEN %s ELSE obs_estoque END
                WHERE id = %s""",
-            (qtd, custo_novo, preco, p.get("ean"), p.get("sku"), p.get("categoria"),
+            (qtd, custo_novo, p.get("ean"), p.get("sku"), p.get("categoria"),
              estimado, estimado, p.get("observacao_quantidade"), prod["id"]),
         )
         cur.execute(
@@ -140,7 +140,7 @@ def importar(caminho, dry_run=False):
     print(f"  Produtos que ja existiam ({len(somados)}):")
     for s in somados:
         print("    ", s)
-    print(f"  Precos alterados ({len(precos)}):")
+    print(f"  Precos diferentes do arquivo, mantidos ({len(precos)}):")
     for s in precos:
         print("    ", s)
     if pulados:
