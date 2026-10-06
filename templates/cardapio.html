@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_ui.html" import icon %}
+{% from "_ui.html" import icon, info_lucro %}
 {% block title %}Cardápio{% endblock %}
 {% block content %}
   <header class="page-head">
@@ -62,7 +62,7 @@
       <li class="prod" data-busca="{{ prod.nome }}">
         <div class="prod-topo">
           <div>
-            <div class="prod-nome">{{ prod.nome }}</div>
+            <div class="prod-nome">{{ prod.nome }} {{ info_lucro(prod) }}</div>
             <div class="prod-meta">
               {% if prod.custo <= 0 %}
                 <span class="pill pill-aviso">Sem custo</span>
@@ -87,7 +87,7 @@
           </div>
           <div class="campo">
             <label for="custo-{{ prod.id }}">Custo (R$)</label>
-            <input type="number" step="0.01" min="0" inputmode="decimal" id="custo-{{ prod.id }}" name="custo" value="{{ prod.custo }}">
+            <input type="number" step="any" min="0" inputmode="decimal" id="custo-{{ prod.id }}" name="custo" value="{{ prod.custo }}">
           </div>
           <button type="submit" class="btn btn-sm">{{ icon('check') }}Salvar</button>
         </form>

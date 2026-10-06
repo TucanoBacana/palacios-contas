@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_ui.html" import icon, tag_cat %}
+{% from "_ui.html" import icon, tag_cat, info_lucro %}
 {% block title %}Estoque{% endblock %}
 {% block content %}
   <header class="page-head">
@@ -22,7 +22,7 @@
     <ul class="linhas">
       {% for prod in lista %}
       <li class="estoque-linha" data-busca="{{ prod.nome }}">
-        <span class="estoque-nome">{{ prod.nome }}</span>
+        <span class="estoque-nome">{{ prod.nome }} {{ info_lucro(prod) }}</span>
         {% if prod.estoque <= 0 %}
           <span class="pill pill-pend">{{ prod.estoque|qtd }} sem estoque</span>
         {% elif prod.estoque <= 5 %}
@@ -36,6 +36,15 @@
                  placeholder="Qtd." aria-label="Quantidade para {{ prod.nome }}">
           <button type="submit" class="btn btn-primario btn-sm">{{ icon('plus') }}{{ rotulo_botao }}</button>
         </form>
+        {% if prod.estoque_estimado %}
+        <form method="post" action="{{ url_for('contar_estoque', produto_id=prod.id) }}" class="estoque-form contagem">
+          <span class="pill pill-aviso">Quantidade estimada</span>
+          <input type="number" name="contagem" step="0.5" min="0" inputmode="decimal" required
+                 value="{{ prod.estoque|qtd|replace(',', '.') }}" aria-label="Quantidade contada de {{ prod.nome }}">
+          <button type="submit" class="btn btn-sm">{{ icon('check') }}Confirmar contagem</button>
+        </form>
+        {% if prod.obs_estoque %}<p class="sub-secao contagem-obs">{{ prod.obs_estoque }}</p>{% endif %}
+        {% endif %}
       </li>
       {% else %}
       <li class="vazio">Nenhum produto aqui ainda. <a href="{{ url_for('cardapio') }}">Cadastrar no Cardápio</a></li>
@@ -51,8 +60,8 @@
     {% for e in entradas %}
     <li class="linha linha-simples">
       <span class="linha-titulo">{{ e.produto }}</span>
-      <span class="linha-sub">{{ e.data|data_br }} {{ tag_cat(e.categoria) }}{% if e.observacoes %}<br>{{ e.observacoes }}{% endif %}</span>
-      <span class="linha-fim"><span class="valor" style="color: var(--ok)">+{{ e.quantidade|qtd }}</span></span>
+      <span class="linha-sub">{{ e.data|data_br }} {{ tag_cat(e.categoria) }}{% if e.custo_unitario %}<br>Custo {{ e.custo_unitario|brl }} por unidade{% endif %}{% if e.observacoes %}<br>{{ e.observacoes }}{% endif %}</span>
+      <span class="linha-fim"><span class="valor" style="color: {{ 'var(--ok)' if e.quantidade > 0 else 'var(--brand)' }}">{{ '+' if e.quantidade > 0 }}{{ e.quantidade|qtd }}</span></span>
     </li>
     {% endfor %}
   </ul>

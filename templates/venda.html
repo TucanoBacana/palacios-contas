@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_ui.html" import icon %}
+{% from "_ui.html" import icon, info_lucro %}
 {% set restaurante = request.endpoint == 'restaurante' %}
 {% block title %}{{ 'Nova encomenda' if restaurante else 'Nova venda' }}{% endblock %}
 {% block content %}
@@ -54,6 +54,7 @@
           {% endif %}
           <span class="tile-preco">{{ prod.preco|brl }}</span>
         </button>
+        {{ info_lucro(prod) }}
         <div class="tile-passo" hidden>
           <button type="button" data-acao="menos" aria-label="Tirar um {{ prod.nome }}">{{ icon('minus') }}</button>
           <output class="tile-qtd" aria-live="polite">0</output>

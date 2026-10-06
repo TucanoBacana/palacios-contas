@@ -116,13 +116,14 @@ def dashboard():
             (hoje().replace(day=1).isoformat(),),
         )
         mes = cur.fetchone()
+        estoque_info = servicos.metricas_estoque(cur)
     conn.close()
 
     lucro_mes = mes["faturamento"] - mes["custo"]
 
     return render_template(
         "dashboard.html", totais=totais, ranking=ranking, ultimos=ultimos,
-        estoque_baixo=estoque_baixo, lucro_mes=lucro_mes,
+        estoque_baixo=estoque_baixo, lucro_mes=lucro_mes, estoque_info=estoque_info,
     )
 
 
@@ -243,6 +244,38 @@ def mercadinho():
 @app.route("/restaurante", methods=["GET", "POST"])
 def restaurante():
     return _registrar_venda("restaurante", "venda.html")
+
+
+@app.route("/estoque/<int:produto_id>/contagem", methods=["POST"])
+def contar_estoque(produto_id):
+    """Confirma a quantidade real de um produto cujo estoque estava estimado."""
+    contado = request.form.get("contagem", type=float)
+    if contado is None or contado < 0:
+        flash("Digite a quantidade contada (zero ou mais).", "erro")
+        return redirect(url_for("estoque"))
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT nome, estoque FROM produtos WHERE id = %s FOR UPDATE", (produto_id,))
+        prod = cur.fetchone()
+        if prod:
+            delta = round(contado - prod["estoque"], 4)
+            if delta:
+                cur.execute(
+                    """INSERT INTO entradas_estoque (data, produto_id, quantidade, observacoes)
+                       VALUES (%s, %s, %s, %s)""",
+                    (hoje().isoformat(), produto_id, delta,
+                     f"Ajuste de contagem: estava {servicos.qtd_texto(prod['estoque'])}, "
+                     f"contado {servicos.qtd_texto(contado)}"))
+            cur.execute("UPDATE produtos SET estoque = %s, estoque_estimado = FALSE WHERE id = %s",
+                        (contado, produto_id))
+            servicos.registrar_historico(
+                cur, usuario_atual(), "Contagem de estoque",
+                f"{prod['nome']}: {servicos.qtd_texto(prod['estoque'])} → {servicos.qtd_texto(contado)}")
+    conn.commit()
+    _avisar_estoque(conn)
+    conn.close()
+    flash("Contagem confirmada." if prod else "Produto não encontrado.", "ok" if prod else "erro")
+    return redirect(url_for("estoque"))
 
 
 @app.route("/estoque", methods=["GET", "POST"])
@@ -623,8 +656,8 @@ def custos():
                 novo = _numero(request.form.get(f"custo_{prod['id']}"))
                 if novo is None or novo < 0:
                     continue
-                novo = round(novo, 2)
-                if novo != round(prod["custo"] or 0, 2):
+                novo = round(novo, 4)  # custo de compra pode ter ate 4 casas (ex.: R$ 0,1958 por unidade)
+                if novo != round(prod["custo"] or 0, 4):
                     cur.execute("UPDATE produtos SET custo = %s WHERE id = %s", (novo, prod["id"]))
                     alterados += 1
                 if retroativo and novo > 0:

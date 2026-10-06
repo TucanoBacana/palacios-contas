@@ -76,6 +76,108 @@
     });
   });
 
+  /* ---------- botao (i): lucro por venda e resumo do estoque ---------- */
+  var pop = document.createElement("div");
+  pop.className = "info-pop";
+  pop.setAttribute("role", "dialog");
+  pop.hidden = true;
+  document.body.appendChild(pop);
+  var aberto = null;
+
+  function linha(rotulo, valor, classe) {
+    var l = document.createElement("div");
+    if (classe) l.className = classe;
+    var dt = document.createElement("dt");
+    dt.textContent = rotulo;
+    var dd = document.createElement("dd");
+    dd.textContent = valor;
+    l.appendChild(dt);
+    l.appendChild(dd);
+    return l;
+  }
+  function pct(v) { return v.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + "%"; }
+
+  function preencherProduto(b) {
+    var preco = parseFloat(b.getAttribute("data-preco")) || 0;
+    var custo = parseFloat(b.getAttribute("data-custo")) || 0;
+    var estoque = parseFloat(b.getAttribute("data-estoque")) || 0;
+    var titulo = document.createElement("strong");
+    titulo.textContent = b.getAttribute("data-nome");
+    pop.appendChild(titulo);
+    if (custo <= 0) {
+      var aviso = document.createElement("p");
+      aviso.className = "info-nota";
+      aviso.textContent = "Preço de venda " + moeda(preco) + ". Este produto está sem custo, então não dá para calcular o lucro. ";
+      var link = document.createElement("a");
+      link.href = "/custos";
+      link.textContent = "Preencher custos";
+      aviso.appendChild(link);
+      pop.appendChild(aviso);
+      return;
+    }
+    var lucro = preco - custo;
+    var dl = document.createElement("dl");
+    dl.className = "info-dados";
+    dl.appendChild(linha("Preço de venda", moeda(preco)));
+    dl.appendChild(linha("Custo", moeda(custo)));
+    dl.appendChild(linha("Lucro por venda", moeda(lucro), "info-lucro"));
+    dl.appendChild(linha("Margem", preco > 0 ? pct(lucro / preco * 100) : "-"));
+    dl.appendChild(linha("Markup sobre o custo", pct(lucro / custo * 100)));
+    pop.appendChild(dl);
+    if (estoque > 0) {
+      var est = document.createElement("p");
+      est.className = "info-nota";
+      est.textContent = "Em estoque: " + estoque.toLocaleString("pt-BR") + ". Se vender tudo, lucro de " + moeda(lucro * estoque) +
+        " (custou " + moeda(custo * estoque) + ").";
+      pop.appendChild(est);
+    }
+    if (b.getAttribute("data-estimado") === "1") {
+      var aprox = document.createElement("p");
+      aprox.className = "info-nota";
+      aprox.textContent = "A quantidade em estoque é estimada: confira a contagem na tela Estoque.";
+      pop.appendChild(aprox);
+    }
+  }
+
+  function abrirInfo(b) {
+    pop.textContent = "";
+    var alvo = b.getAttribute("data-info-alvo");
+    var modelo = alvo ? $(alvo) : null;
+    if (modelo) pop.appendChild(modelo.content.cloneNode(true));
+    else preencherProduto(b);
+    pop.hidden = false;
+    b.setAttribute("aria-expanded", "true");
+    aberto = b;
+    var r = b.getBoundingClientRect();
+    var largura = pop.offsetWidth;
+    var esquerda = Math.min(Math.max(12, r.left + r.width / 2 - largura / 2), window.innerWidth - largura - 12);
+    var topo = r.bottom + 8;
+    if (topo + pop.offsetHeight > window.innerHeight - 12) topo = Math.max(12, r.top - pop.offsetHeight - 8);
+    pop.style.left = esquerda + "px";
+    pop.style.top = topo + "px";
+  }
+  function fecharInfo() {
+    if (!aberto) return;
+    pop.hidden = true;
+    aberto.setAttribute("aria-expanded", "false");
+    aberto = null;
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest(".info-btn");
+    if (b) {
+      e.preventDefault();
+      e.stopPropagation();
+      var mesmo = aberto === b;
+      fecharInfo();
+      if (!mesmo) abrirInfo(b);
+      return;
+    }
+    if (!e.target.closest(".info-pop")) fecharInfo();
+  }, true);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") fecharInfo(); });
+  window.addEventListener("scroll", fecharInfo, { passive: true });
+  window.addEventListener("resize", fecharInfo);
+
   /* ---------- copiar e enviar mensagem de cobranca ---------- */
   $$("[data-copiar]").forEach(function (botao) {
     botao.addEventListener("click", function () {

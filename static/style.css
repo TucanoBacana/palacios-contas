@@ -1560,6 +1560,163 @@ input:disabled {
   }
 }
 
+/* ---------- botao (i) com detalhes de lucro ---------- */
+
+.info-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  vertical-align: middle;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.info-btn .ic {
+  width: 18px;
+  height: 18px;
+}
+.info-btn:hover,
+.info-btn[aria-expanded="true"] {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.info-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.tile .info-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.tile .tile-nome {
+  padding-right: 20px;
+}
+.info-pop {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  gap: 10px;
+  width: min(320px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 16px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--float);
+}
+.info-pop[hidden] {
+  display: none;
+}
+.info-pop a {
+  color: var(--brand);
+  font-weight: 700;
+}
+.info-dados {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.info-dados > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.info-dados dt {
+  color: var(--muted);
+}
+.info-dados dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.info-dados .info-lucro dd {
+  color: var(--ok);
+}
+.info-linha,
+.info-titulo,
+.info-nota {
+  margin: 0;
+}
+.info-titulo {
+  color: var(--muted);
+  font-weight: 700;
+}
+.info-nota {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+.info-lista {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+.info-lista li span {
+  float: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- resumo do estoque (painel) ---------- */
+
+.estoque-resumo {
+  margin-top: 18px;
+  padding: 14px 16px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.estoque-resumo-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.estoque-resumo-topo h2 {
+  margin: 0;
+}
+.estoque-resumo-dados {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 8px 0 0;
+}
+.estoque-resumo-dados dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.estoque-resumo-dados dd {
+  margin: 3px 0 0;
+  font: 700 clamp(0.78rem, 3.7vw, 1rem) var(--font-display);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.estoque-resumo-dados dd.ok {
+  color: var(--ok);
+}
+.contagem {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.contagem input {
+  flex: 1 1 90px;
+  max-width: 130px;
+}
+.contagem-obs {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 /* ---------- movimento reduzido ---------- */
 
 @media (prefers-reduced-motion: reduce) {

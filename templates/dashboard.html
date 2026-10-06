@@ -44,6 +44,43 @@
     </a>
   </div>
 
+  {% if estoque_info.skus %}
+  <section class="estoque-resumo" aria-label="Estoque">
+    <div class="estoque-resumo-topo">
+      <h2>Estoque</h2>
+      <button type="button" class="info-btn" aria-expanded="false" aria-haspopup="dialog"
+              aria-label="Mais detalhes do estoque" data-info-alvo="#info-estoque">{{ icon('info') }}</button>
+    </div>
+    <dl class="estoque-resumo-dados">
+      <div><dt>Investido</dt><dd>{{ estoque_info.investido|brl }}</dd></div>
+      <div><dt>Vale vendendo</dt><dd>{{ estoque_info.potencial|brl }}</dd></div>
+      <div><dt>Lucro possível</dt><dd class="ok">{{ estoque_info.lucro|brl }}</dd></div>
+    </dl>
+    <template id="info-estoque">
+      <strong>Estoque e lucro possível</strong>
+      <dl class="info-dados">
+        <div><dt>Margem</dt><dd>{{ estoque_info.margem|pct(1) }}</dd></div>
+        <div><dt>Markup sobre o custo</dt><dd>{{ estoque_info.markup|pct(1) }}</dd></div>
+        <div><dt>Unidades em estoque</dt><dd>{{ estoque_info.unidades|qtd }}</dd></div>
+        <div><dt>Produtos com estoque</dt><dd>{{ estoque_info.skus }}</dd></div>
+      </dl>
+      {% for c in estoque_info.por_categoria %}
+      <p class="info-linha"><b>{{ 'Restaurante' if c.categoria == 'restaurante' else 'Mercadinho' }}</b>
+        custou {{ c.investido|brl }}, vale {{ c.potencial|brl }} (lucro {{ c.lucro|brl }})</p>
+      {% endfor %}
+      {% if estoque_info.top %}
+      <p class="info-titulo">Mais lucro se vender tudo</p>
+      <ol class="info-lista">
+        {% for t in estoque_info.top %}<li>{{ t.nome }} <span>{{ t.lucro|brl }}</span></li>{% endfor %}
+      </ol>
+      {% endif %}
+      {% if estoque_info.sem_custo %}
+      <p class="info-nota">{{ estoque_info.sem_custo }} {{ 'produto com estoque está' if estoque_info.sem_custo == 1 else 'produtos com estoque estão' }} sem custo e ficou fora dessas contas. <a href="{{ url_for('custos') }}">Preencher custos</a></p>
+      {% endif %}
+    </template>
+  </section>
+  {% endif %}
+
   {% if estoque_baixo %}
   <section class="aviso" aria-label="Estoque baixo">
     {{ icon('alert') }}

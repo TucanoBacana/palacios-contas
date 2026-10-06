@@ -2,6 +2,13 @@
 <svg class="ic {{ cls }}" aria-hidden="true" focusable="false"><use href="#i-{{ name }}"></use></svg>
 {%- endmacro %}
 
+{% macro info_lucro(prod) -%}
+<button type="button" class="info-btn" aria-expanded="false" aria-haspopup="dialog"
+        aria-label="Lucro por venda de {{ prod.nome }}" data-nome="{{ prod.nome }}" data-preco="{{ prod.preco }}"
+        data-custo="{{ prod.custo or 0 }}" data-estoque="{{ prod.estoque }}"
+        data-estimado="{{ 1 if prod.estoque_estimado else 0 }}">{{ icon('info') }}</button>
+{%- endmacro %}
+
 {% macro tag_cat(c) -%}
 <span class="pill cat-{{ c }}">{{ 'Restaurante' if c == 'restaurante' else 'Mercadinho' }}</span>
 {%- endmacro %}

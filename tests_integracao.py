@@ -417,7 +417,58 @@ try:
     r = cli2.post("/bot/avisos/teste", follow_redirects=True)
     confere(b"Resumo enviado" in r.data, "botao de resumo")
 
-    print("7. fuso e leituras")
+    print("7. compra de estoque, lucro por item e contagem")
+    import importar_estoque
+    ARQ = os.path.join(os.path.expanduser("~"), "Downloads", "palacios_estoque_claude.json")
+    if os.path.exists(ARQ):
+        dados = json.load(open(ARQ, encoding="utf-8"))
+        ex("""INSERT INTO produtos (numero_item, nome, preco, categoria, estoque, custo) VALUES
+              (8, 'Coca cola Pet 200ml', 4, 'mercadinho', 0, 0), (9, 'Coca Cola lata 350ml', 7, 'mercadinho', 3, 0),
+              (13, 'Guaraná Antarctica Pet 200ml', 4, 'mercadinho', 0, 0)""")
+        antes = q("SELECT COUNT(*) n FROM produtos")[0]["n"]
+        importar_estoque.importar(ARQ, dry_run=True)
+        confere(q("SELECT COUNT(*) n FROM produtos")[0]["n"] == antes, "simulacao nao grava")
+        importar_estoque.importar(ARQ)
+        n_json = len(dados["produtos"])
+        confere(q("SELECT COUNT(*) n FROM produtos")[0]["n"] == antes + n_json - 3, "so cria o que nao existe (3 ja existiam)")
+        ent = q("SELECT COALESCE(SUM(quantidade),0) u, COALESCE(SUM(custo_total),0) c FROM entradas_estoque WHERE referencia IS NOT NULL")[0]
+        confere(ent["u"] == 154 and abs(ent["c"] - 299.63) < 0.011, f"154 unidades e R$ 299,63 de custo ({ent})")
+        coca = q("SELECT estoque, custo, preco, ean, sku FROM produtos WHERE numero_item = 9")[0]
+        confere(coca["estoque"] == 15 and abs(coca["custo"] - 3.8) < 1e-9 and coca["preco"] == 6 and coca["ean"] == "07894900010015",
+                f"coca existente: soma estoque, custo e preco do arquivo ({coca})")
+        confere(q("SELECT COUNT(*) n FROM produtos WHERE nome ILIKE '%coca%zero%'")[0]["n"] == 1, "coca zero criada")
+        importar_estoque.importar(ARQ)
+        confere(q("SELECT SUM(estoque) s FROM produtos WHERE ean IS NOT NULL")[0]["s"] == 157, "rodar de novo nao soma de novo")
+        pop = q("SELECT id, estoque, estoque_estimado, obs_estoque FROM produtos WHERE sku = 'PIR-POPKISS-MEL-500'")[0]
+        confere(pop["estoque"] == 50 and pop["estoque_estimado"] and "estimado" in pop["obs_estoque"], "pop kiss marcado como estimado")
+
+        cli3 = app.test_client()
+        r = cli3.get("/")
+        confere(r.status_code == 200 and "Lucro possível".encode() in r.data and b"info-estoque" in r.data, "painel mostra o resumo do estoque")
+        c = _conexao_de_teste()
+        info = servicos.metricas_estoque(c.cursor())
+        c.close()
+        confere(info["potencial"] > info["investido"] > 0 and len(info["top"]) == 5 and info["unidades"] > 154,
+                "metricas do estoque")
+        confere(abs(info["lucro"] - (info["potencial"] - info["investido"])) < 1e-6, "lucro = valor de venda - investido")
+        for rota in ("/estoque", "/cardapio", "/restaurante", "/mercadinho", "/custos"):
+            r = cli3.get(rota)
+            confere(r.status_code == 200 and (b"info-btn" in r.data or rota == "/custos"), f"{rota} abre")
+        confere(b"Quantidade estimada" in cli3.get("/estoque").data, "estoque mostra contagem para o estimado")
+        confere(b'step="any"' in cli3.get("/custos").data, "campo de custo aceita 4 casas")
+        r = cli3.post(f"/estoque/{pop['id']}/contagem", data={"contagem": "48"}, follow_redirects=True)
+        confere(b"Contagem confirmada" in r.data, "contagem enviada")
+        pop2 = q("SELECT estoque, estoque_estimado FROM produtos WHERE id = %s", (pop["id"],))[0]
+        confere(pop2["estoque"] == 48 and not pop2["estoque_estimado"], "contagem ajusta e tira o aviso de estimado")
+        confere(q("SELECT quantidade FROM entradas_estoque WHERE produto_id = %s ORDER BY id DESC LIMIT 1", (pop["id"],))[0]["quantidade"] == -2,
+                "ajuste vira entrada de -2")
+        confere(b"-2" in cli3.get("/estoque").data, "entrada negativa aparece sem '+'")
+        cli3.post("/custos", data={f"custo_{pop['id']}": "0.1958"}, follow_redirects=True)
+        confere(q("SELECT custo FROM produtos WHERE id = %s", (pop["id"],))[0]["custo"] == 0.1958, "custo com 4 casas preservado")
+    else:
+        print("   (arquivo palacios_estoque_claude.json nao encontrado: parte pulada)")
+
+    print("8. fuso e leituras")
     confere(servicos.agora().tzinfo is not None and servicos.hoje() == servicos.agora().date(), "data no fuso do Brasil")
 
 finally:

@@ -40,7 +40,7 @@
           </label>
           <div class="custo-campo">
             <span aria-hidden="true">R$</span>
-            <input type="number" id="custo_{{ prod.id }}" name="custo_{{ prod.id }}" step="0.01" min="0"
+            <input type="number" id="custo_{{ prod.id }}" name="custo_{{ prod.id }}" step="any" min="0"
                    inputmode="decimal" value="{{ prod.custo if prod.custo > 0 else '' }}" placeholder="0,00">
           </div>
         </li>

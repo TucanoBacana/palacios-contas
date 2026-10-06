@@ -259,3 +259,36 @@ def texto_resumo(cur):
     if baixo:
         linhas.append("Estoque baixo: " + ", ".join(f"{b['nome']} ({qtd_texto(b['estoque'])})" for b in baixo))
     return "\n".join(linhas)
+
+
+# ---------------------------------------------------------------- estoque
+
+def metricas_estoque(cur):
+    """Quanto ha de estoque, quanto custou, quanto vale e quanto sobra de lucro se tudo for vendido.
+    Valores so contam produtos com custo cadastrado (sem custo nao ha como saber o lucro)."""
+    cur.execute(
+        """SELECT categoria, COUNT(*) AS skus, COALESCE(SUM(estoque), 0) AS unidades,
+                  COALESCE(SUM(estoque * custo), 0) AS investido, COALESCE(SUM(estoque * preco), 0) AS potencial
+           FROM produtos WHERE ativo AND estoque > 0 AND custo > 0 GROUP BY categoria ORDER BY categoria"""
+    )
+    por_categoria = [dict(r, lucro=r["potencial"] - r["investido"]) for r in cur.fetchall()]
+    cur.execute("SELECT COUNT(*) AS skus, COALESCE(SUM(estoque), 0) AS unidades FROM produtos "
+                "WHERE ativo AND estoque > 0")
+    todos = cur.fetchone()
+    cur.execute("SELECT COUNT(*) AS n FROM produtos WHERE ativo AND estoque > 0 AND custo <= 0")
+    sem_custo = cur.fetchone()["n"]
+    cur.execute(
+        """SELECT nome, estoque, (preco - custo) * estoque AS lucro FROM produtos
+           WHERE ativo AND estoque > 0 AND custo > 0 ORDER BY lucro DESC, nome LIMIT 5"""
+    )
+    top = cur.fetchall()
+    investido = sum(c["investido"] for c in por_categoria)
+    potencial = sum(c["potencial"] for c in por_categoria)
+    lucro = potencial - investido
+    return {
+        "investido": investido, "potencial": potencial, "lucro": lucro,
+        "margem": (lucro / potencial * 100) if potencial else 0,
+        "markup": (lucro / investido * 100) if investido else 0,
+        "unidades": todos["unidades"], "skus": todos["skus"], "sem_custo": sem_custo,
+        "por_categoria": por_categoria, "top": top,
+    }
