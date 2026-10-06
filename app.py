@@ -236,6 +236,40 @@ def _registrar_venda(categoria, template):
     )
 
 
+@app.route("/produtos/novo", methods=["POST"])
+def novo_produto():
+    """Cadastro rapido de item, pelas telas de venda do Mercadinho e do Restaurante."""
+    categoria = request.form.get("categoria")
+    destino = url_for("restaurante" if categoria == "restaurante" else "mercadinho")
+    if categoria not in CATEGORIAS:
+        flash("Escolha se o item é do Mercadinho ou do Restaurante.", "erro")
+        return redirect(url_for("mercadinho"))
+    nome = servicos.nome_limpo(request.form.get("nome"))
+    preco = whatsapp_bot.ler_valor(request.form.get("preco", ""))
+    quantidade = _numero(request.form.get("quantidade") or 0)
+    custo = whatsapp_bot.ler_valor(request.form.get("custo", "")) if request.form.get("custo") else 0
+    if not nome:
+        flash("Digite o nome do item.", "erro")
+    elif preco is None or preco < 0:
+        flash("Digite o preço de venda, por exemplo 7 ou 7,50.", "erro")
+    elif quantidade is None or quantidade < 0 or custo is None or custo < 0:
+        flash("A quantidade e o custo precisam ser zero ou mais.", "erro")
+    else:
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                _, texto = servicos.criar_produto(cur, nome, preco, categoria, quantidade, custo, usuario_atual())
+            conn.commit()
+            _avisar_estoque(conn)
+            flash(f"{texto}, com estoque {servicos.qtd_texto(quantidade)}. Já aparece na lista.", "neutro")
+        except ValueError as erro:
+            conn.rollback()
+            flash(str(erro), "erro")
+        finally:
+            conn.close()
+    return redirect(destino)
+
+
 @app.route("/mercadinho", methods=["GET", "POST"])
 def mercadinho():
     return _registrar_venda("mercadinho", "venda.html")

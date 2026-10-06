@@ -87,7 +87,7 @@
           {% if mensagens %}
           <div class="toasts" role="status" aria-live="polite">
             {% for tipo, msg in mensagens %}
-            <div class="toast {{ 'toast-erro' if tipo == 'erro' }}">
+            <div class="toast {{ 'toast-erro' if tipo == 'erro' }}{{ ' toast-neutro' if tipo == 'neutro' }}">
               {{ icon('alert' if tipo == 'erro' else 'check') }}<span>{{ msg }}</span>
             </div>
             {% endfor %}

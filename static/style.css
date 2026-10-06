@@ -1717,6 +1717,15 @@ input:disabled {
   margin: 0;
 }
 
+.novo-item {
+  margin-top: 14px;
+}
+.resumo-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ---------- movimento reduzido ---------- */
 
 @media (prefers-reduced-motion: reduce) {

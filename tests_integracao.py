@@ -468,7 +468,39 @@ try:
     else:
         print("   (arquivo palacios_estoque_claude.json nao encontrado: parte pulada)")
 
-    print("8. fuso e leituras")
+    print("8. adicionar item novo pelas telas de venda")
+    cli4 = app.test_client()
+    r = cli4.post("/produtos/novo", data={"categoria": "restaurante", "nome": "  Torta   de Frango ", "preco": "9,50",
+                                         "quantidade": "12", "custo": "4,2"}, follow_redirects=True)
+    confere(b"adicionado" in r.data and b"Torta de Frango" in r.data, "item novo do restaurante aparece na tela")
+    nt = q("SELECT id, nome, preco, custo, categoria, estoque, numero_item FROM produtos WHERE nome = 'Torta de Frango'")[0]
+    confere(nt["categoria"] == "restaurante" and nt["preco"] == 9.5 and nt["custo"] == 4.2 and nt["estoque"] == 12
+            and nt["numero_item"] is None, f"dados gravados ({nt})")
+    confere(q("SELECT quantidade, observacoes FROM entradas_estoque WHERE produto_id = %s", (nt["id"],))[0]["quantidade"] == 12,
+            "estoque inicial vira entrada")
+    r = cli4.post("/restaurante", data={"pessoa": "Kevin", "itens": json.dumps([{"produto_id": nt["id"], "quantidade": 5}])},
+                  follow_redirects=True)
+    confere(estoque("Torta de Frango") == 7, "encomenda do restaurante baixa o estoque do item novo")
+    r = cli4.post("/produtos/novo", data={"categoria": "mercadinho", "nome": "torta de frango", "preco": "5"}, follow_redirects=True)
+    confere("Já existe".encode() in r.data, "nome repetido e recusado")
+    r = cli4.post("/produtos/novo", data={"categoria": "mercadinho", "nome": "Suco de Uva 200ml", "preco": "6", "quantidade": ""},
+                  follow_redirects=True)
+    confere(b"adicionado" in r.data and estoque("Suco de Uva 200ml") == 0, "item do mercadinho sem quantidade nasce com estoque 0")
+    for ruim in ({"nome": "", "preco": "5"}, {"nome": "X item", "preco": ""}, {"nome": "Y item", "preco": "abc"},
+                 {"nome": "Z item", "preco": "5", "quantidade": "-3"}):
+        antes = q("SELECT COUNT(*) n FROM produtos")[0]["n"]
+        cli4.post("/produtos/novo", data={"categoria": "mercadinho", **ruim})
+        confere(q("SELECT COUNT(*) n FROM produtos")[0]["n"] == antes, f"entrada invalida recusada {ruim}")
+    confere(cli4.post("/produtos/novo", data={"categoria": "outro", "nome": "A", "preco": "1"}).status_code == 302
+            and q("SELECT COUNT(*) n FROM produtos WHERE nome = 'A'")[0]["n"] == 0, "categoria invalida recusada")
+    cli4.post("/cardapio", data={"acao": "desativar", "produto_id": nt["id"]})
+    r = cli4.post("/produtos/novo", data={"categoria": "restaurante", "nome": "TORTA DE FRANGO", "preco": "10", "quantidade": "3"},
+                  follow_redirects=True)
+    confere(b"voltou para o card" in r.data and estoque("Torta de Frango") == 3, "item removido volta ao cardapio em vez de duplicar")
+    confere(b"Adicionar item novo" in cli4.get("/mercadinho").data and b"Quantidade produzida" in cli4.get("/restaurante").data,
+            "painel de adicionar aparece nas duas telas")
+
+    print("9. fuso e leituras")
     confere(servicos.agora().tzinfo is not None and servicos.hoje() == servicos.agora().date(), "data no fuso do Brasil")
 
 finally:

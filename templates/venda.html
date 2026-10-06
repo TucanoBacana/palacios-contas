@@ -65,6 +65,37 @@
     </div>
     <p id="sem-produto" class="sem-resultado" hidden>Nenhum produto com esse nome.</p>
 
+    <details class="painel novo-item"{% if request.args.get('novo') %} open{% endif %}>
+      <summary><span class="resumo-titulo">{{ icon('plus') }}Adicionar item novo</span>{{ icon('chevron') }}</summary>
+      <div class="painel-corpo">
+        <div class="campo">
+          <label for="ni-nome">Nome do item</label>
+          <input type="text" id="ni-nome" name="nome" form="form-novo-item" required maxlength="80"
+                 placeholder="{{ 'Ex.: Torta de frango' if restaurante else 'Ex.: Suco de uva 200ml' }}" autocomplete="off">
+        </div>
+        <div class="campos">
+          <div class="campo">
+            <label for="ni-preco">Preço de venda (R$)</label>
+            <input type="text" id="ni-preco" name="preco" form="form-novo-item" required inputmode="decimal" placeholder="0,00">
+          </div>
+          <div class="campo">
+            <label for="ni-qtd">{{ 'Quantidade produzida' if restaurante else 'Quantidade que chegou' }}</label>
+            <input type="number" id="ni-qtd" name="quantidade" form="form-novo-item" min="0" step="1" inputmode="numeric" value="0">
+          </div>
+          <div class="campo">
+            <label for="ni-custo">Custo (R$, opcional)</label>
+            <input type="text" id="ni-custo" name="custo" form="form-novo-item" inputmode="decimal" placeholder="0,00">
+          </div>
+        </div>
+        <p class="sub-secao" style="margin: 0">
+          {% if restaurante %}Cada encomenda registrada aqui tira do estoque sozinha, e o aviso de estoque baixo chega no Telegram.
+          {% else %}Cada venda registrada aqui tira do estoque sozinha, e o aviso de estoque baixo chega no Telegram.{% endif %}
+          Se montou uma comanda, ela continua aqui depois de adicionar.
+        </p>
+        <button type="submit" form="form-novo-item" class="btn btn-grande">{{ icon('plus') }}Adicionar ao cardápio</button>
+      </div>
+    </details>
+
     <details class="painel mais-opcoes">
       <summary>Pagamento, data e observações {{ icon('chevron') }}</summary>
       <div class="painel-corpo">
@@ -89,6 +120,10 @@
     </details>
 
     <input type="hidden" name="itens" id="itens-input">
+  </form>
+
+  <form id="form-novo-item" method="post" action="{{ url_for('novo_produto') }}" autocomplete="off">
+    <input type="hidden" name="categoria" value="{{ 'restaurante' if restaurante else 'mercadinho' }}">
   </form>
 
   <div class="spacer-comanda"></div>

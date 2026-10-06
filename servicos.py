@@ -292,3 +292,45 @@ def metricas_estoque(cur):
         "unidades": todos["unidades"], "skus": todos["skus"], "sem_custo": sem_custo,
         "por_categoria": por_categoria, "top": top,
     }
+
+
+# ---------------------------------------------------------------- produtos
+
+def nome_limpo(nome):
+    return " ".join(str(nome or "").split())
+
+
+def chave_produto(nome):
+    """Para achar produto repetido: sem acento, maiusculas e sem pontuacao."""
+    import unicodedata
+    t = unicodedata.normalize("NFD", nome_limpo(nome))
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^A-Z0-9]+", " ", t.upper()).strip()
+
+
+def criar_produto(cur, nome, preco, categoria, quantidade=0, custo=0, quem="App"):
+    """Cadastra um produto (ou reativa um removido com o mesmo nome) ja com o estoque inicial.
+    Retorna (produto_id, mensagem). Levanta ValueError se o nome ja existe no cardapio."""
+    nome = nome_limpo(nome)
+    cur.execute("SELECT id, nome, ativo FROM produtos")
+    existente = next((p for p in cur.fetchall() if chave_produto(p["nome"]) == chave_produto(nome)), None)
+    if existente and existente["ativo"]:
+        raise ValueError(f"Já existe “{existente['nome']}” no cardápio. Para somar quantidade, use a tela Estoque.")
+    if existente:
+        cur.execute("UPDATE produtos SET ativo = TRUE, preco = %s, custo = %s, categoria = %s, estoque = %s "
+                    "WHERE id = %s", (preco, custo, categoria, quantidade, existente["id"]))
+        produto_id, texto = existente["id"], f"“{nome}” voltou para o cardápio"
+    else:
+        cur.execute(
+            "INSERT INTO produtos (nome, preco, custo, categoria, estoque) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+            (nome, preco, custo, categoria, quantidade))
+        produto_id, texto = cur.fetchone()["id"], f"“{nome}” adicionado"
+    if quantidade > 0:
+        cur.execute(
+            """INSERT INTO entradas_estoque (data, produto_id, quantidade, observacoes, custo_unitario, preco_venda)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (hoje().isoformat(), produto_id, quantidade, "Estoque inicial ao cadastrar o item",
+             custo or None, preco))
+    registrar_historico(cur, quem, "Novo produto",
+                        f"{nome}: {brl(preco)}, estoque inicial {qtd_texto(quantidade)} ({categoria})")
+    return produto_id, texto

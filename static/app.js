@@ -306,7 +306,7 @@
   });
 
   /* Se acabou de registrar com sucesso, comeca limpo. Se deu erro, devolve o que estava montado. */
-  var houveSucesso = $(".toast:not(.toast-erro)");
+  var houveSucesso = $(".toast:not(.toast-erro):not(.toast-neutro)");
   if (houveSucesso) {
     esquecer();
   } else {
