@@ -32,6 +32,11 @@ def chave(texto):
 
 
 def localizar(cur, p):
+    if p.get("numero_item_existente"):
+        cur.execute("SELECT * FROM produtos WHERE numero_item = %s", (p["numero_item_existente"],))
+        row = cur.fetchone()
+        if row:
+            return row, "numero do item"
     if p.get("ean"):
         cur.execute("SELECT * FROM produtos WHERE ean = %s", (p["ean"],))
         row = cur.fetchone()
